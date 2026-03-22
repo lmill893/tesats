@@ -6,881 +6,841 @@
 <title>L — Holographic Builder</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap');
-
   :root {
-    --neon: #00d4ff;
-    --neon-glow: 0 0 8px #00d4ff, 0 0 20px rgba(0,212,255,0.5);
-    --ui-bg: #f5f3ef;
-    --ui-text: #1a1a1a;
-    --ui-muted: #888;
-    --ui-border: #d8d4cc;
-    --ui-accent: #1a1a1a;
+    --neon:#00d4ff; --neon-glow:0 0 8px #00d4ff,0 0 20px rgba(0,212,255,.5);
+    --ui:#f5f3ef; --txt:#1a1a1a; --muted:#888; --border:#d8d4cc;
   }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'DM Sans',sans-serif;color:var(--txt);overflow:hidden;height:100vh;width:100vw;background:#000}
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  /* CAMERA */
+  #cv{position:fixed;inset:0;z-index:0;transition:background .4s}
+  #wf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);transition:opacity .4s}
+  body.bg-black #wf{opacity:0} body.bg-black #cv{background:#000} body.bg-camera #wf{opacity:1}
+  #oc{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+  #sc{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
 
-  body {
-    background: var(--ui-bg);
-    font-family: 'DM Sans', sans-serif;
-    color: var(--ui-text);
-    overflow: hidden;
-    height: 100vh;
-    width: 100vw;
-  }
+  /* TOPBAR */
+  #topbar{position:fixed;top:0;left:0;right:0;height:56px;background:rgba(245,243,239,.93);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;justify-content:space-between;z-index:30}
+  #logo{font-family:'EB Garamond',serif;font-size:32px;font-weight:500;letter-spacing:-.02em;line-height:1}
+  #tc{display:flex;align-items:center;gap:6px;flex:1;justify-content:center}
+  .tgl-grp{display:flex;align-items:center;gap:0}
+  .tgl-lbl{font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-right:6px;white-space:nowrap}
+  .tgl{height:28px;padding:0 12px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:.06em;cursor:pointer;transition:all .15s;white-space:nowrap}
+  .tgl:first-of-type{border-radius:3px 0 0 3px;border-right:none}
+  .tgl:last-of-type{border-radius:0 3px 3px 0}
+  .tgl.active{background:var(--txt);color:var(--ui);border-color:var(--txt)}
+  .tgl-sep{width:1px;height:24px;background:var(--border);margin:0 10px}
+  #tr{display:flex;align-items:center;gap:16px}
+  #fps{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+  #sysbadge{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .sdot{width:6px;height:6px;border-radius:50%;background:#ccc;transition:background .3s,box-shadow .3s}
+  .sdot.live{background:var(--neon);box-shadow:var(--neon-glow)}
 
-  /* ── CAMERA VIEWPORT (neon world lives here) ── */
-  #camera-viewport {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    z-index: 0;
-  }
+  /* SIDEBAR */
+  #sidebar{position:fixed;top:56px;left:0;bottom:0;width:72px;background:rgba(245,243,239,.9);backdrop-filter:blur(14px);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;z-index:20;overflow-y:auto}
+  .sg{display:flex;flex-direction:column;align-items:center;gap:3px}
+  .sbtn{width:44px;height:44px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:all .15s;flex-shrink:0}
+  .sbtn:hover{border-color:var(--txt);color:var(--txt);background:rgba(0,0,0,.04)}
+  .sbtn.active{border-color:var(--txt);background:var(--txt);color:var(--ui)}
+  .slbl{font-size:7px;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;text-align:center}
+  .sdivider{width:28px;height:1px;background:var(--border);margin:8px 0}
+  .clrbtn{width:44px;height:44px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:all .15s}
+  .clrbtn:hover{border-color:#c00;color:#c00}
 
-  #webcam-feed {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    object-fit: cover;
-    opacity: 1;
-    transform: scaleX(-1);
-  }
+  /* INFO PANEL */
+  #info{position:fixed;top:56px;right:0;width:190px;background:rgba(245,243,239,.9);backdrop-filter:blur(14px);border-left:1px solid var(--border);padding:16px 16px;z-index:20;pointer-events:none}
+  .ir{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--border)}
+  .ir:last-child{border-bottom:none}
+  .il{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+  .iv{font-size:11px;font-weight:500;color:var(--txt);font-variant-numeric:tabular-nums}
 
-  #overlay-canvas {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-    /* No CSS flip — draw code maps landmarks correctly */
-    z-index: 1;
-  }
+  /* ZOOM STRIP */
+  #zstrip{position:fixed;left:84px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:5px;z-index:20;pointer-events:none}
+  .zlbl{font-size:7px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+  #ztrack{width:2px;height:100px;background:var(--border);border-radius:1px;position:relative}
+  #zthumb{position:absolute;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:var(--txt);transition:top .12s}
 
-  #scene {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    z-index: 2;
-    pointer-events: none;
-  }
+  /* BOTTOM BAR */
+  #gbar{position:fixed;bottom:0;left:72px;right:0;height:44px;background:rgba(245,243,239,.93);backdrop-filter:blur(14px);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:24px;z-index:30;pointer-events:none}
+  .hint{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)}
+  .hk{font-size:9px;font-weight:500;color:var(--txt);border:1px solid var(--border);padding:2px 7px;border-radius:3px}
+  #glabel{font-size:12px;color:var(--txt);font-style:italic;font-family:'EB Garamond',serif;min-width:140px;text-align:center}
 
-  /* ── PANEL CHROME (clean editorial) ── */
-  #ui-layer {
-    position: fixed; inset: 0;
-    z-index: 10;
-    pointer-events: none;
-  }
+  /* AI PANEL */
+  #ai-panel{position:fixed;bottom:44px;left:72px;right:190px;background:rgba(245,243,239,.96);backdrop-filter:blur(16px);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:12px 20px;z-index:25;display:none;align-items:center;gap:12px}
+  #ai-panel.open{display:flex}
+  #ai-input{flex:1;height:34px;border:1px solid var(--border);background:transparent;padding:0 12px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--txt);border-radius:3px;outline:none}
+  #ai-input:focus{border-color:var(--txt)}
+  #ai-send{height:34px;padding:0 18px;background:var(--txt);color:var(--ui);border:none;font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:.08em;cursor:pointer;border-radius:3px;transition:opacity .15s;white-space:nowrap}
+  #ai-send:hover{opacity:.75}
+  #ai-send:disabled{opacity:.4;cursor:not-allowed}
+  #ai-status{font-size:10px;color:var(--muted);font-style:italic;white-space:nowrap;font-family:'EB Garamond',serif}
+  #ai-close{width:28px;height:28px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:14px;border-radius:3px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+  #ai-close:hover{border-color:var(--txt);color:var(--txt)}
 
-  /* Top bar */
-  #topbar {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    height: 56px;
-    background: rgba(245,243,239,0.88);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--ui-border);
-    display: flex;
-    align-items: center;
-    padding: 0 28px;
-    justify-content: space-between;
-    z-index: 20;
-    pointer-events: all;
-  }
+  /* CONNECTION LINE highlight */
+  .conn-active .sbtn#tool-connect{border-color:var(--neon)!important;color:var(--neon)!important;box-shadow:var(--neon-glow)}
 
-  #logo {
-    font-family: 'EB Garamond', serif;
-    font-size: 32px;
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    color: var(--ui-text);
-    line-height: 1;
-  }
-
-  #topbar-right {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-  }
-
-  #sys-badge {
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--ui-muted);
-    letter-spacing: 0.05em;
-  }
-
-  #sys-badge span {
-    display: inline-block;
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: #ccc;
-    margin-right: 6px;
-    vertical-align: middle;
-    transition: background 0.3s, box-shadow 0.3s;
-  }
-
-  #sys-badge.active span {
-    background: var(--neon);
-    box-shadow: var(--neon-glow);
-  }
-
-  #fps-badge {
-    font-size: 11px;
-    color: var(--ui-muted);
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* Left sidebar */
-  #sidebar {
-    position: fixed;
-    top: 56px; left: 0; bottom: 0;
-    width: 72px;
-    background: rgba(245,243,239,0.82);
-    backdrop-filter: blur(12px);
-    border-right: 1px solid var(--ui-border);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 20px 0;
-    gap: 6px;
-    z-index: 20;
-    pointer-events: all;
-  }
-
-  .shape-btn {
-    width: 44px; height: 44px;
-    border: 1px solid var(--ui-border);
-    background: transparent;
-    color: var(--ui-muted);
-    cursor: pointer;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 6px;
-    transition: all 0.15s;
-    flex-shrink: 0;
-  }
-
-  .shape-btn:hover {
-    border-color: var(--ui-text);
-    color: var(--ui-text);
-    background: rgba(0,0,0,0.04);
-  }
-
-  .shape-btn.active {
-    border-color: var(--ui-text);
-    background: var(--ui-text);
-    color: var(--ui-bg);
-  }
-
-  .shape-label {
-    font-size: 8px;
-    letter-spacing: 0.08em;
-    color: var(--ui-muted);
-    text-transform: uppercase;
-    text-align: center;
-  }
-
-  .shape-group {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .sidebar-divider {
-    width: 28px;
-    height: 1px;
-    background: var(--ui-border);
-    margin: 10px 0;
-  }
-
-  .clear-btn {
-    width: 44px; height: 44px;
-    border: 1px solid var(--ui-border);
-    background: transparent;
-    color: var(--ui-muted);
-    cursor: pointer;
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 6px;
-    transition: all 0.15s;
-    font-family: 'DM Sans', sans-serif;
-    letter-spacing: 0.03em;
-  }
-  .clear-btn:hover {
-    border-color: #c00;
-    color: #c00;
-  }
-
-  /* Right info panel */
-  #info-panel {
-    position: fixed;
-    top: 56px; right: 0;
-    width: 200px;
-    background: rgba(245,243,239,0.82);
-    backdrop-filter: blur(12px);
-    border-left: 1px solid var(--ui-border);
-    padding: 20px 18px;
-    z-index: 20;
-    pointer-events: none;
-  }
-
-  .info-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--ui-border);
-  }
-
-  .info-row:last-child { border-bottom: none; }
-
-  .info-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--ui-muted);
-    font-weight: 400;
-  }
-
-  .info-value {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--ui-text);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .info-value.live {
-    color: var(--neon);
-    text-shadow: var(--neon-glow);
-    font-family: 'DM Sans', monospace;
-  }
-
-  /* Bottom gesture hint */
-  #gesture-bar {
-    position: fixed;
-    bottom: 0; left: 72px; right: 0;
-    height: 44px;
-    background: rgba(245,243,239,0.88);
-    backdrop-filter: blur(12px);
-    border-top: 1px solid var(--ui-border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 48px;
-    z-index: 20;
-    pointer-events: none;
-  }
-
-  .hint {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 11px;
-    color: var(--ui-muted);
-  }
-
-  .hint-key {
-    font-size: 10px;
-    font-weight: 500;
-    color: var(--ui-text);
-    border: 1px solid var(--ui-border);
-    padding: 2px 8px;
-    border-radius: 3px;
-    font-family: 'DM Sans', sans-serif;
-    letter-spacing: 0.05em;
-  }
-
-  #gesture-label {
-    font-size: 12px;
-    color: var(--ui-text);
-    font-style: italic;
-    font-family: 'EB Garamond', serif;
-    min-width: 180px;
-    text-align: center;
-  }
-
-  /* Splash screen */
-  #splash {
-    position: fixed; inset: 0;
-    z-index: 100;
-    background: var(--ui-bg);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    transition: opacity 0.6s;
-  }
-
-  #splash-logo {
-    font-family: 'EB Garamond', serif;
-    font-size: 96px;
-    font-weight: 400;
-    letter-spacing: -0.04em;
-    color: var(--ui-text);
-    line-height: 1;
-  }
-
-  #splash-sub {
-    font-size: 12px;
-    color: var(--ui-muted);
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    font-weight: 300;
-  }
-
-  #splash-btn {
-    margin-top: 24px;
-    padding: 11px 36px;
-    background: var(--ui-text);
-    border: none;
-    color: var(--ui-bg);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 12px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    cursor: pointer;
-    border-radius: 2px;
-    transition: opacity 0.2s;
-  }
-  #splash-btn:hover { opacity: 0.75; }
-
-  #splash-divider {
-    width: 1px;
-    height: 40px;
-    background: var(--ui-border);
-    margin: 8px 0;
-  }
-
-  /* Loading bar */
-  #load-bar-wrap {
-    width: 120px; height: 1px;
-    background: var(--ui-border);
-    display: none;
-    position: relative;
-    overflow: hidden;
-  }
-  #load-bar-wrap.visible { display: block; }
-  #load-bar-fill {
-    position: absolute; top: 0; left: 0;
-    height: 100%;
-    background: var(--ui-text);
-    width: 0%;
-    transition: width 1.5s ease;
-  }
-
-  #load-text {
-    font-size: 10px;
-    color: var(--ui-muted);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
+  /* SPLASH */
+  #splash{position:fixed;inset:0;z-index:100;background:var(--ui);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .6s}
+  #splash-logo{font-family:'EB Garamond',serif;font-size:96px;font-weight:400;letter-spacing:-.04em;line-height:1}
+  #splash-sub{font-size:11px;color:var(--muted);letter-spacing:.2em;text-transform:uppercase}
+  #splash-div{width:1px;height:36px;background:var(--border);margin:2px 0}
+  #splash-btn{margin-top:18px;padding:10px 32px;background:var(--txt);border:none;color:var(--ui);font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:opacity .2s}
+  #splash-btn:hover{opacity:.75}
+  #lw{width:120px;height:1px;background:var(--border);display:none;position:relative;overflow:hidden}
+  #lw.v{display:block}
+  #lf{position:absolute;top:0;left:0;height:100%;background:var(--txt);width:0%;transition:width 1.5s ease}
+  #lt{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
 </style>
 </head>
-<body>
+<body class="bg-camera">
 
-<!-- CAMERA WORLD (neon lives here) -->
-<div id="camera-viewport">
-  <video id="webcam-feed" autoplay muted playsinline></video>
-  <canvas id="overlay-canvas"></canvas>
-  <canvas id="scene"></canvas>
+<div id="cv">
+  <video id="wf" autoplay muted playsinline></video>
+  <canvas id="oc"></canvas>
+  <canvas id="sc"></canvas>
 </div>
 
 <!-- SPLASH -->
 <div id="splash">
   <div id="splash-logo">L</div>
-  <div id="splash-divider"></div>
+  <div id="splash-div"></div>
   <div id="splash-sub">Holographic Object Builder</div>
-  <button id="splash-btn" onclick="initCamera()">Begin</button>
-  <div id="load-bar-wrap"><div id="load-bar-fill"></div></div>
-  <div id="load-text" style="display:none"></div>
+  <button id="splash-btn" onclick="startCamera()">Begin</button>
+  <div id="lw"><div id="lf"></div></div>
+  <div id="lt" style="display:none"></div>
 </div>
 
-<!-- TOP BAR -->
+<!-- TOPBAR -->
 <div id="topbar">
   <div id="logo">L</div>
-  <div id="topbar-right">
-    <div id="fps-badge">-- fps</div>
-    <div id="sys-badge"><span></span>Standby</div>
+  <div id="tc">
+    <!-- Background -->
+    <div class="tgl-grp">
+      <span class="tgl-lbl">Bg</span>
+      <button class="tgl active" id="btn-camera" onclick="setBg('camera')">Camera</button>
+      <button class="tgl" id="btn-black" onclick="setBg('black')">Black</button>
+    </div>
+    <div class="tgl-sep"></div>
+    <!-- Fill mode -->
+    <div class="tgl-grp">
+      <span class="tgl-lbl">Fill</span>
+      <button class="tgl active" id="btn-hollow" onclick="setFill('hollow')">Hollow</button>
+      <button class="tgl" id="btn-solid" onclick="setFill('solid')">Solid</button>
+    </div>
+    <div class="tgl-sep"></div>
+    <!-- Draw mode -->
+    <div class="tgl-grp">
+      <span class="tgl-lbl">Mode</span>
+      <button class="tgl active" id="btn-place" onclick="setMode('place')">Place</button>
+      <button class="tgl" id="btn-paint" onclick="setMode('paint')">Paint</button>
+      <button class="tgl" id="btn-connect" onclick="setMode('connect')">Connect</button>
+    </div>
+    <div class="tgl-sep"></div>
+    <!-- AI button -->
+    <button class="tgl" id="btn-ai" onclick="toggleAI()" style="gap:5px">✦ AI Build</button>
+  </div>
+  <div id="tr">
+    <div id="fps">-- fps</div>
+    <div id="sysbadge"><div class="sdot" id="sdot"></div><span id="stxt">Standby</span></div>
   </div>
 </div>
 
-<!-- LEFT SIDEBAR -->
+<!-- SIDEBAR shapes -->
 <div id="sidebar">
-  <div class="shape-group">
-    <button class="shape-btn active" id="tool-cube" onclick="setShape('cube')" title="Cube">⬡</button>
-    <div class="shape-label">Cube</div>
-  </div>
-  <div class="shape-group">
-    <button class="shape-btn" id="tool-sphere" onclick="setShape('sphere')" title="Sphere">○</button>
-    <div class="shape-label">Sphere</div>
-  </div>
-  <div class="shape-group">
-    <button class="shape-btn" id="tool-pyramid" onclick="setShape('pyramid')" title="Pyramid">△</button>
-    <div class="shape-label">Pyramid</div>
-  </div>
-  <div class="shape-group">
-    <button class="shape-btn" id="tool-torus" onclick="setShape('torus')" title="Torus">◎</button>
-    <div class="shape-label">Torus</div>
-  </div>
-  <div class="sidebar-divider"></div>
-  <div class="shape-group">
-    <button class="clear-btn" onclick="clearObjects()" title="Clear all">✕</button>
-    <div class="shape-label">Clear</div>
-  </div>
+  <div class="sg"><button class="sbtn active" id="tool-cube" onclick="setShape('cube')">⬡</button><div class="slbl">Cube</div></div>
+  <div class="sg"><button class="sbtn" id="tool-sphere" onclick="setShape('sphere')">○</button><div class="slbl">Sphere</div></div>
+  <div class="sg"><button class="sbtn" id="tool-pyramid" onclick="setShape('pyramid')">△</button><div class="slbl">Pyramid</div></div>
+  <div class="sg"><button class="sbtn" id="tool-torus" onclick="setShape('torus')">◎</button><div class="slbl">Torus</div></div>
+  <div class="sg"><button class="sbtn" id="tool-octahedron" onclick="setShape('octahedron')">◇</button><div class="slbl">Octa</div></div>
+  <div class="sg"><button class="sbtn" id="tool-cylinder" onclick="setShape('cylinder')">⬭</button><div class="slbl">Cyl.</div></div>
+  <div class="sdivider"></div>
+  <div class="sg"><button class="clrbtn" onclick="clearAll()">✕</button><div class="slbl">Clear</div></div>
 </div>
 
-<!-- RIGHT INFO -->
-<div id="info-panel">
-  <div class="info-row">
-    <span class="info-label">Zoom</span>
-    <span class="info-value" id="zoom-display">50%</span>
-  </div>
-  <div class="info-row">
-    <span class="info-label">Objects</span>
-    <span class="info-value" id="obj-count">0</span>
-  </div>
-  <div class="info-row">
-    <span class="info-label">Selected</span>
-    <span class="info-value" id="sel-display">—</span>
-  </div>
-  <div class="info-row">
-    <span class="info-label">Mode</span>
-    <span class="info-value" id="mode-display">Place</span>
-  </div>
-  <div class="info-row">
-    <span class="info-label">Left hand</span>
-    <span class="info-value" id="left-status">—</span>
-  </div>
-  <div class="info-row">
-    <span class="info-label">Right hand</span>
-    <span class="info-value" id="right-status">—</span>
-  </div>
+<!-- ZOOM STRIP -->
+<div id="zstrip">
+  <div class="zlbl">Near</div>
+  <div id="ztrack"><div id="zthumb" style="top:46px"></div></div>
+  <div class="zlbl">Far</div>
+</div>
+
+<!-- INFO PANEL -->
+<div id="info">
+  <div class="ir"><span class="il">Objects</span><span class="iv" id="obj-count">0</span></div>
+  <div class="ir"><span class="il">Selected</span><span class="iv" id="sel-disp">—</span></div>
+  <div class="ir"><span class="il">Mode</span><span class="iv" id="mode-disp">Place</span></div>
+  <div class="ir"><span class="il">Z depth</span><span class="iv" id="depth-disp">8.0</span></div>
+  <div class="ir"><span class="il">Connections</span><span class="iv" id="conn-count">0</span></div>
+  <div class="ir"><span class="il">L. hand</span><span class="iv" id="lh-stat">—</span></div>
+  <div class="ir"><span class="il">R. hand</span><span class="iv" id="rh-stat">—</span></div>
+</div>
+
+<!-- AI PANEL -->
+<div id="ai-panel">
+  <input id="ai-input" placeholder="Describe a structure… e.g. 'a tall tower of cubes'" />
+  <span id="ai-status"></span>
+  <button id="ai-send" onclick="runAI()">Generate</button>
+  <button id="ai-close" onclick="toggleAI()">✕</button>
 </div>
 
 <!-- BOTTOM BAR -->
-<div id="gesture-bar">
-  <div class="hint"><span class="hint-key">Scroll</span> Zoom</div>
-  <div class="hint"><span class="hint-key">Left pinch</span> Place · Move</div>
-  <div id="gesture-label">Awaiting input</div>
-  <div class="hint"><span class="hint-key">Right pinch</span> Rotate</div>
+<div id="gbar">
+  <div class="hint"><span class="hk">L. fist</span>Place · Move · Paint</div>
+  <div id="glabel">Awaiting input</div>
+  <div class="hint"><span class="hk">R. pinch</span>Rotate · Connect</div>
+  <div class="hint"><span class="hk">Scroll</span>Z depth</div>
 </div>
 
-<!-- Scripts -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
 <script>
-const NEON = 0x00d4ff;
-const NEON_CSS = '#00d4ff';
+// ═══════════════════════════════════════════════════════════════════════
+// CONSTANTS & GLOBALS
+// ═══════════════════════════════════════════════════════════════════════
+const NEON = 0x00d4ff, NEON_CSS = '#00d4ff';
+const CAM_Z = 14, DEPTH_MIN = 2, DEPTH_MAX = 18;
+const PAINT_SPACING = 0.6; // min world-space distance between paint drops
 
 let scene3d, camera3d, renderer3d;
-let hands, mpCamera;
-let webcamEl = document.getElementById('webcam-feed');
-let overlayCanvas = document.getElementById('overlay-canvas');
-let overlayCtx = overlayCanvas.getContext('2d');
-let sceneCanvas = document.getElementById('scene');
+let mpHands, mpCamera;
+const webcamEl   = document.getElementById('wf');
+const overlayCanvas = document.getElementById('oc');
+const overlayCtx = overlayCanvas.getContext('2d');
+const sceneCanvas = document.getElementById('sc');
 
-let objects = [];
+let objects = [];       // all placed 3d groups
+let connections = [];   // [{a, b, line}]
 let selectedObj = null;
 let currentShape = 'cube';
+let fillMode = 'hollow'; // hollow | solid
+let buildMode = 'place'; // place | paint | connect
 let lastFrameTime = 0;
 
-let leftPinch = false, rightPinch = false;
-let leftPinchPos = null;
-let prevRightPinchPos = null;
-let isDragging = false, dragObj = null;
-let spawnCooldown = 0;
+// gesture state
+let leftActive = false, rightPinch = false;
+let prevRightPos = null;
+let isDragging = false, dragObj = null, spawnCooldown = 0;
 
-// ── THREE SETUP ───────────────────────────────────────────────────────────────
-function initThree() {
-  scene3d = new THREE.Scene();
-  camera3d = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera3d.position.set(0, 0, 10);
+// paint state
+let isPainting = false, lastPaintPos = null;
 
-  renderer3d = new THREE.WebGLRenderer({ canvas: sceneCanvas, antialias: true, alpha: true });
-  renderer3d.setSize(window.innerWidth, window.innerHeight);
-  renderer3d.setClearColor(0x000000, 0);
-  renderer3d.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// connect state
+let connectFirst = null; // first object to connect
 
-  const pt = new THREE.PointLight(NEON, 1.5, 60);
-  pt.position.set(4, 4, 6);
-  scene3d.add(pt);
+// depth
+let depthTarget = 8, currentDepth = 8;
 
-  window.addEventListener('resize', () => {
-    camera3d.aspect = window.innerWidth / window.innerHeight;
-    camera3d.updateProjectionMatrix();
-    renderer3d.setSize(window.innerWidth, window.innerHeight);
-    overlayCanvas.width = window.innerWidth;
-    overlayCanvas.height = window.innerHeight;
-  });
-
-  requestAnimationFrame(animate);
+// ═══════════════════════════════════════════════════════════════════════
+// UI CONTROLS
+// ═══════════════════════════════════════════════════════════════════════
+function setBg(m) {
+  document.body.className = 'bg-' + m;
+  document.getElementById('btn-camera').classList.toggle('active', m==='camera');
+  document.getElementById('btn-black').classList.toggle('active', m==='black');
 }
 
-// ── OBJECT CREATION ───────────────────────────────────────────────────────────
-function makeObject(shape) {
-  const geos = {
-    cube:    new THREE.BoxGeometry(1.5, 1.5, 1.5, 3, 3, 3),
-    sphere:  new THREE.SphereGeometry(0.9, 14, 10),
-    pyramid: new THREE.ConeGeometry(1, 1.8, 5),
-    torus:   new THREE.TorusGeometry(0.8, 0.22, 10, 28),
-  };
-  const geo = geos[shape] || geos.cube;
-
-  const group = new THREE.Group();
-
-  // Wireframe
-  const wire = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
-    color: NEON, wireframe: true, transparent: true, opacity: 0.85
-  }));
-  group.add(wire);
-
-  // Sharp edges
-  const edgeGeo = new THREE.EdgesGeometry(geo);
-  const edgeLines = new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({
-    color: NEON, transparent: true, opacity: 1
-  }));
-  group.add(edgeLines);
-
-  group.userData = {
-    shape, pulsePhase: Math.random() * Math.PI * 2,
-    rotVel: { x: 0.002, y: 0.004 }
-  };
-  return group;
+function setFill(m) {
+  fillMode = m;
+  document.getElementById('btn-hollow').classList.toggle('active', m==='hollow');
+  document.getElementById('btn-solid').classList.toggle('active', m==='solid');
+  // Update existing objects
+  objects.forEach(o => applyFill(o, m));
 }
 
-function spawnAt(sx, sy) {
-  const obj = makeObject(currentShape);
-  obj.position.copy(screenToWorld(sx, sy, 8));
-  obj.rotation.set(Math.random() * 0.4, Math.random() * Math.PI * 2, 0);
-  scene3d.add(obj);
-  objects.push(obj);
-  document.getElementById('obj-count').textContent = objects.length;
-  // Pop in
-  obj.scale.setScalar(0.01);
-  const t0 = performance.now();
-  (function grow(now) {
-    const p = Math.min((now - t0) / 280, 1);
-    obj.scale.setScalar(1 - Math.pow(1 - p, 3));
-    if (p < 1) requestAnimationFrame(grow);
-  })(performance.now());
-  return obj;
-}
-
-function clearObjects() {
-  objects.forEach(o => scene3d.remove(o));
-  objects = []; selectedObj = null;
-  document.getElementById('obj-count').textContent = '0';
-  document.getElementById('sel-display').textContent = '—';
+function setMode(m) {
+  buildMode = m;
+  ['place','paint','connect'].forEach(x => document.getElementById('btn-'+x).classList.toggle('active', x===m));
+  connectFirst = null;
+  document.getElementById('mode-disp').textContent = m.charAt(0).toUpperCase()+m.slice(1);
+  setGesture(m==='paint' ? 'Hold fist to paint' : m==='connect' ? 'Fist near obj → pinch near obj' : 'Fist to place · hold to drag');
 }
 
 function setShape(s) {
   currentShape = s;
-  document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tool-' + s).classList.add('active');
+  document.querySelectorAll('.sbtn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tool-'+s).classList.add('active');
 }
 
-// ── COORDS ────────────────────────────────────────────────────────────────────
-function screenToWorld(sx, sy, depth) {
-  const x = (sx - 0.5) * 2, y = -(sy - 0.5) * 2;
-  const fov = camera3d.fov * Math.PI / 180;
-  const halfH = Math.tan(fov / 2) * depth;
-  const halfW = halfH * camera3d.aspect;
-  return new THREE.Vector3(x * halfW, y * halfH, camera3d.position.z - depth);
+function toggleAI() {
+  const p = document.getElementById('ai-panel');
+  p.classList.toggle('open');
+  if (p.classList.contains('open')) document.getElementById('ai-input').focus();
 }
 
-function nearestObj(sx, sy) {
-  const wp = screenToWorld(sx, sy, 8);
-  let best = null, bestD = 1.8;
-  objects.forEach(o => { const d = o.position.distanceTo(wp); if (d < bestD) { bestD = d; best = o; } });
+// ═══════════════════════════════════════════════════════════════════════
+// AI MODEL GENERATION
+// ═══════════════════════════════════════════════════════════════════════
+async function runAI() {
+  const input = document.getElementById('ai-input').value.trim();
+  if (!input) return;
+  const btn = document.getElementById('ai-send');
+  const status = document.getElementById('ai-status');
+  btn.disabled = true;
+  status.textContent = 'Thinking…';
+
+  const systemPrompt = `You are a 3D holographic structure generator. When given a description, output ONLY valid JSON — no markdown, no explanation.
+The JSON must be an array of objects. Each object has:
+  - "shape": one of "cube","sphere","pyramid","torus","octahedron","cylinder"
+  - "x": number (-4 to 4)
+  - "y": number (-3 to 3)
+  - "z": number (2 to 12, depth offset from camera — smaller = closer)
+  - "scale": number (0.5 to 2.5)
+  - "fill": "hollow" or "solid"
+  - "rx","ry","rz": rotation in radians
+And optionally:
+  - "connections": array of index pairs like [[0,1],[1,2]] to connect objects with lines
+
+Keep structures under 30 objects. Make them visually interesting and 3D. Example shapes: towers use stacked cubes with y increasing; bridges use horizontal cubes; molecules use spheres with torus rings; etc.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: input }]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content?.[0]?.text || '';
+    // Strip any markdown fences
+    const clean = raw.replace(/```json|```/gi, '').trim();
+    let parsed;
+    // Find the JSON array in the response
+    const match = clean.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('No JSON array found');
+    parsed = JSON.parse(match[0]);
+
+    status.textContent = `Building ${parsed.length} objects…`;
+
+    // Clear existing and build
+    clearAll();
+    const conns = [];
+    parsed.forEach((item, idx) => {
+      const o = makeObj(item.shape || 'cube', item.fill || fillMode);
+      o.position.set(item.x || 0, item.y || 0, CAM_Z - (item.z || 8));
+      o.rotation.set(item.rx || 0, item.ry || 0, item.rz || 0);
+      const s = item.scale || 1;
+      o.scale.setScalar(0.01);
+      scene3d.add(o); objects.push(o);
+      const t0 = performance.now() + idx * 60;
+      (function grow(t) {
+        if (t < t0) { requestAnimationFrame(grow); return; }
+        const p = Math.min((t - t0) / 300, 1);
+        o.scale.setScalar(s * (1 - Math.pow(1 - p, 3)));
+        if (p < 1) requestAnimationFrame(grow);
+      })(performance.now());
+      if (item.connections) conns.push(...item.connections.map(([a,b]) => [a, b]));
+    });
+
+    // Add connections after all objects placed
+    setTimeout(() => {
+      conns.forEach(([ai, bi]) => {
+        if (objects[ai] && objects[bi]) addConnection(objects[ai], objects[bi]);
+      });
+    }, parsed.length * 60 + 400);
+
+    document.getElementById('obj-count').textContent = objects.length;
+    status.textContent = '✓ Done';
+    setTimeout(() => { status.textContent = ''; }, 2000);
+    document.getElementById('ai-panel').classList.remove('open');
+    document.getElementById('ai-input').value = '';
+  } catch (e) {
+    status.textContent = '✗ Error: ' + e.message.slice(0, 40);
+    console.error(e);
+  }
+  btn.disabled = false;
+}
+
+document.getElementById('ai-input').addEventListener('keydown', e => { if (e.key === 'Enter') runAI(); });
+
+// ═══════════════════════════════════════════════════════════════════════
+// THREE.JS SETUP
+// ═══════════════════════════════════════════════════════════════════════
+function initThree() {
+  scene3d = new THREE.Scene();
+  camera3d = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 200);
+  camera3d.position.set(0, 0, CAM_Z);
+
+  renderer3d = new THREE.WebGLRenderer({ canvas: sceneCanvas, antialias: true, alpha: true });
+  renderer3d.setSize(innerWidth, innerHeight);
+  renderer3d.setClearColor(0, 0);
+  renderer3d.setPixelRatio(Math.min(devicePixelRatio, 2));
+
+  const pt = new THREE.PointLight(NEON, 2, 100);
+  pt.position.set(5, 5, 8); scene3d.add(pt);
+  const pt2 = new THREE.PointLight(0xffffff, 0.4, 60);
+  pt2.position.set(-5, -3, 4); scene3d.add(pt2);
+  const ambient = new THREE.AmbientLight(0x003344, 0.8);
+  scene3d.add(ambient);
+
+  addEventListener('resize', () => {
+    camera3d.aspect = innerWidth/innerHeight;
+    camera3d.updateProjectionMatrix();
+    renderer3d.setSize(innerWidth, innerHeight);
+    overlayCanvas.width = innerWidth; overlayCanvas.height = innerHeight;
+  });
+  requestAnimationFrame(animate);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// OBJECT CREATION
+// ═══════════════════════════════════════════════════════════════════════
+function getGeo(shape) {
+  switch(shape) {
+    case 'cube':       return new THREE.BoxGeometry(1.5,1.5,1.5,3,3,3);
+    case 'sphere':     return new THREE.SphereGeometry(0.9,16,12);
+    case 'pyramid':    return new THREE.ConeGeometry(1,1.8,5);
+    case 'torus':      return new THREE.TorusGeometry(0.8,0.22,10,28);
+    case 'octahedron': return new THREE.OctahedronGeometry(1);
+    case 'cylinder':   return new THREE.CylinderGeometry(0.6,0.6,1.8,12);
+    default:           return new THREE.BoxGeometry(1.5,1.5,1.5,3,3,3);
+  }
+}
+
+function makeObj(shape, fill) {
+  fill = fill || fillMode;
+  const geo = getGeo(shape);
+  const g = new THREE.Group();
+
+  if (fill === 'solid') {
+    // Solid mesh with neon phong material
+    const mat = new THREE.MeshPhongMaterial({
+      color: NEON, emissive: new THREE.Color(0x003344),
+      transparent: true, opacity: 0.85,
+      shininess: 80
+    });
+    g.add(new THREE.Mesh(geo, mat));
+    // Edge overlay on solid
+    g.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 })));
+  } else {
+    // Hollow wireframe
+    g.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+      color: NEON, wireframe: true, transparent: true, opacity: 0.8
+    })));
+    g.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+      new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 1 })));
+  }
+
+  g.userData = { shape, fill, pulsePhase: Math.random()*Math.PI*2, rotVel: {x:0.002,y:0.004} };
+  return g;
+}
+
+function applyFill(obj, fill) {
+  // Re-build the visual children in place
+  const shape = obj.userData.shape;
+  obj.userData.fill = fill;
+  while (obj.children.length) obj.remove(obj.children[0]);
+  const geo = getGeo(shape);
+  if (fill === 'solid') {
+    obj.add(new THREE.Mesh(geo, new THREE.MeshPhongMaterial({
+      color: NEON, emissive: new THREE.Color(0x003344), transparent: true, opacity: 0.85, shininess: 80
+    })));
+    obj.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 })));
+  } else {
+    obj.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+      color: NEON, wireframe: true, transparent: true, opacity: 0.8
+    })));
+    obj.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+      new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 1 })));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// CONNECTIONS
+// ═══════════════════════════════════════════════════════════════════════
+function addConnection(a, b) {
+  // Avoid duplicate
+  if (connections.find(c => (c.a===a&&c.b===b)||(c.a===b&&c.b===a))) return;
+  const pts = [a.position.clone(), b.position.clone()];
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({ color: NEON, transparent: true, opacity: 0.6 });
+  const line = new THREE.Line(geo, mat);
+  line.userData.connData = { a, b };
+  scene3d.add(line);
+  connections.push({ a, b, line });
+  document.getElementById('conn-count').textContent = connections.length;
+  return line;
+}
+
+function updateConnections() {
+  connections.forEach(c => {
+    const pts = [c.a.position.clone(), c.b.position.clone()];
+    c.line.geometry.setFromPoints(pts);
+    c.line.geometry.attributes.position.needsUpdate = true;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SPAWN / CLEAR
+// ═══════════════════════════════════════════════════════════════════════
+function s2w(sx, sy, depth) {
+  const fh = Math.tan(camera3d.fov * Math.PI / 360) * depth;
+  return new THREE.Vector3((sx-.5)*2*fh*camera3d.aspect, -(sy-.5)*2*fh, CAM_Z-depth);
+}
+
+function spawnAt(sx, sy, instantScale) {
+  const o = makeObj(currentShape, fillMode);
+  o.position.copy(s2w(sx, sy, currentDepth));
+  o.rotation.set(Math.random()*.3, Math.random()*Math.PI*2, 0);
+  scene3d.add(o); objects.push(o);
+  document.getElementById('obj-count').textContent = objects.length;
+  if (instantScale) {
+    o.scale.setScalar(1);
+  } else {
+    o.scale.setScalar(0.01);
+    const t0 = performance.now();
+    (function grow(t) { const p=Math.min((t-t0)/240,1); o.scale.setScalar(1-Math.pow(1-p,3)); if(p<1) requestAnimationFrame(grow); })(t0);
+  }
+  return o;
+}
+
+function clearAll() {
+  objects.forEach(o => scene3d.remove(o));
+  connections.forEach(c => scene3d.remove(c.line));
+  objects = []; connections = []; selectedObj = null; connectFirst = null;
+  document.getElementById('obj-count').textContent = '0';
+  document.getElementById('conn-count').textContent = '0';
+  document.getElementById('sel-disp').textContent = '—';
+}
+
+function nearestObj(sx, sy, threshold=0.12) {
+  let best=null, bestD=Infinity;
+  objects.forEach(o => {
+    const p = o.position.clone().project(camera3d);
+    const d = Math.hypot((p.x+1)/2-sx, (-p.y+1)/2-sy);
+    if (d<threshold && d<bestD) { bestD=d; best=o; }
+  });
   return best;
 }
 
-// ── HAND RESULTS ──────────────────────────────────────────────────────────────
-function onHandResults(results) {
-  overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-  overlayCanvas.width = window.innerWidth;
-  overlayCanvas.height = window.innerHeight;
+// ═══════════════════════════════════════════════════════════════════════
+// HAND TRACKING
+// ═══════════════════════════════════════════════════════════════════════
+function onHandResults(res) {
+  overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+  overlayCanvas.width = innerWidth; overlayCanvas.height = innerHeight;
 
-  if (!results.multiHandLandmarks?.length) {
-    document.getElementById('left-status').textContent = '—';
-    document.getElementById('right-status').textContent = '—';
-    if (isDragging) { isDragging = false; dragObj = null; }
+  if (!res.multiHandLandmarks?.length) {
+    document.getElementById('lh-stat').textContent = '—';
+    document.getElementById('rh-stat').textContent = '—';
+    if (isDragging) { isDragging=false; dragObj=null; }
+    isPainting = false; lastPaintPos = null;
     return;
   }
 
-  results.multiHandLandmarks.forEach((lm, i) => {
-    const label = results.multiHandedness[i].label; // mediapipe mirrors: 'Right' = user's left
-    const isLeft = label === 'Right';
-    const pd = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
-    const pinching = pd < 0.046;
-    const center = { x: (lm[4].x + lm[8].x) / 2, y: (lm[4].y + lm[8].y) / 2 };
+  res.multiHandLandmarks.forEach((lm, i) => {
+    const isLeft = res.multiHandedness[i].label === 'Right'; // mediapipe mirrors
+    const fistD  = Math.hypot(lm[4].x-lm[17].x, lm[4].y-lm[17].y);
+    const isFist = fistD < 0.13;
+    const pinchD = Math.hypot(lm[4].x-lm[8].x, lm[4].y-lm[8].y);
+    const isPinch = pinchD < 0.046;
+    const cx = isLeft ? (lm[4].x+lm[17].x)/2 : (lm[4].x+lm[8].x)/2;
+    const cy = isLeft ? (lm[4].y+lm[17].y)/2 : (lm[4].y+lm[8].y)/2;
 
     if (isLeft) {
-      document.getElementById('left-status').textContent = pinching ? 'Pinching' : 'Open';
-      handleLeft(lm, pinching, center);
+      document.getElementById('lh-stat').textContent = isFist ? 'Fist' : 'Open';
+      handleLeft(lm, isFist, cx, cy);
     } else {
-      document.getElementById('right-status').textContent = pinching ? 'Pinching' : 'Open';
-      handleRight(lm, pinching, center);
+      document.getElementById('rh-stat').textContent = isPinch ? 'Pinching' : 'Open';
+      handleRight(lm, isPinch, cx, cy);
     }
-
-    drawSkeleton(lm, pinching, center);
+    drawSkeleton(lm, isLeft ? isFist : isPinch, cx, cy, isLeft);
   });
 }
 
-function handleLeft(lm, pinching, center) {
-  // center.x from MediaPipe is unflipped; video is CSS-flipped; so world x = 1 - center.x
-  const wx = 1 - center.x, wy = center.y;
-  if (pinching && !leftPinch) {
-    leftPinch = true;
+// ── LEFT HAND ──────────────────────────────────────────────────────────
+function handleLeft(lm, isFist, cx, cy) {
+  const wx = 1-cx, wy = cy;
+
+  if (buildMode === 'paint') {
+    if (isFist) {
+      if (!isPainting) {
+        isPainting = true;
+        const o = spawnAt(wx, wy, true);
+        selectedObj = o; lastPaintPos = o.position.clone();
+        setGesture('Painting…');
+      } else {
+        // Drop a new object if moved far enough
+        const testPos = s2w(wx, wy, currentDepth);
+        if (!lastPaintPos || testPos.distanceTo(lastPaintPos) > PAINT_SPACING) {
+          const o = spawnAt(wx, wy, true);
+          // Auto-connect to previous paint object
+          if (lastPaintPos && objects.length >= 2) {
+            addConnection(objects[objects.length-2], o);
+          }
+          lastPaintPos = o.position.clone();
+        }
+      }
+    } else {
+      if (isPainting) { isPainting=false; lastPaintPos=null; setGesture('Paint released'); }
+    }
+    return;
+  }
+
+  if (buildMode === 'connect') {
+    // Left fist = select first object for connection
+    if (isFist && !leftActive) {
+      leftActive = true;
+      const near = nearestObj(wx, wy);
+      if (near && near !== connectFirst) {
+        if (!connectFirst) {
+          connectFirst = near; selectedObj = near;
+          document.getElementById('sel-disp').textContent = near.userData.shape;
+          setGesture('First selected — now pick second');
+        } else {
+          addConnection(connectFirst, near);
+          setGesture('Connected!');
+          connectFirst = null; selectedObj = null;
+          document.getElementById('sel-disp').textContent = '—';
+        }
+      }
+    } else if (!isFist) {
+      leftActive = false;
+    }
+    return;
+  }
+
+  // PLACE mode
+  if (isFist && !leftActive) {
+    leftActive = true;
     const near = nearestObj(wx, wy);
     if (near) {
-      isDragging = true; dragObj = near; selectedObj = near;
-      document.getElementById('sel-display').textContent = near.userData.shape;
-      document.getElementById('mode-display').textContent = 'Move';
+      isDragging=true; dragObj=near; selectedObj=near;
+      document.getElementById('sel-disp').textContent = near.userData.shape;
+      document.getElementById('mode-disp').textContent = 'Move';
       setGesture('Moving object');
     } else if (spawnCooldown <= 0) {
       const o = spawnAt(wx, wy);
-      selectedObj = o;
-      document.getElementById('sel-display').textContent = o.userData.shape;
-      document.getElementById('mode-display').textContent = 'Place';
+      selectedObj=o;
+      document.getElementById('sel-disp').textContent = o.userData.shape;
+      document.getElementById('mode-disp').textContent = 'Place';
       setGesture('Object placed');
-      spawnCooldown = 18;
+      spawnCooldown = 22;
     }
-  } else if (pinching && leftPinch) {
-    if (isDragging && dragObj) {
-      const wp = screenToWorld(wx, wy, 8);
-      dragObj.position.lerp(wp, 0.25);
-    }
-  } else if (!pinching && leftPinch) {
-    leftPinch = false; isDragging = false; dragObj = null;
-    document.getElementById('mode-display').textContent = 'Place';
-  }
-  leftPinchPos = center;
-}
-
-function handleRight(lm, pinching, center) {
-  const wx = 1 - center.x, wy = center.y;
-  if (pinching && !rightPinch) {
-    rightPinch = true;
-    prevRightPinchPos = center;
-    document.getElementById('mode-display').textContent = 'Rotate';
-    const near = nearestObj(wx, wy) || (objects.length ? objects[objects.length - 1] : null);
-    if (near) {
-      selectedObj = near;
-      document.getElementById('sel-display').textContent = near.userData.shape;
-      setGesture('Rotating object');
-    }
-  } else if (pinching && rightPinch && prevRightPinchPos && selectedObj) {
-    const dx = (center.x - prevRightPinchPos.x) * 8;
-    const dy = (center.y - prevRightPinchPos.y) * 8;
-    selectedObj.rotation.y += dx;
-    selectedObj.rotation.x += dy;
-    selectedObj.userData.rotVel.y = dx * 0.4;
-    selectedObj.userData.rotVel.x = dy * 0.4;
-    prevRightPinchPos = center;
-  } else if (!pinching && rightPinch) {
-    rightPinch = false; prevRightPinchPos = null;
-    document.getElementById('mode-display').textContent = 'Place';
+  } else if (isFist && leftActive && isDragging && dragObj) {
+    const d = Math.max(0.5, CAM_Z-dragObj.position.z);
+    const wp = s2w(wx, wy, d);
+    dragObj.position.x += (wp.x-dragObj.position.x)*0.25;
+    dragObj.position.y += (wp.y-dragObj.position.y)*0.25;
+  } else if (!isFist && leftActive) {
+    leftActive=false; isDragging=false; dragObj=null;
+    document.getElementById('mode-disp').textContent = 'Place';
   }
 }
 
-// ── DRAW SKELETON ─────────────────────────────────────────────────────────────
-const CONNECTIONS = [
-  [0,1],[1,2],[2,3],[3,4],
-  [0,5],[5,6],[6,7],[7,8],
-  [0,9],[9,10],[10,11],[11,12],
-  [0,13],[13,14],[14,15],[15,16],
-  [0,17],[17,18],[18,19],[19,20],
-  [5,9],[9,13],[13,17]
-];
+// ── RIGHT HAND ─────────────────────────────────────────────────────────
+function handleRight(lm, isPinch, cx, cy) {
+  const wx = 1-cx, wy = cy;
 
-function drawSkeleton(lm, pinching, center) {
-  const W = overlayCanvas.width, H = overlayCanvas.height;
-  // Webcam video is CSS scaleX(-1), so we mirror the canvas to match:
-  // draw mirrored so skeleton sits on top of the flipped video
+  if (buildMode === 'connect') {
+    // Right pinch = select second object for connection
+    if (isPinch && !rightPinch) {
+      rightPinch = true;
+      const near = nearestObj(wx, wy);
+      if (near && connectFirst && near !== connectFirst) {
+        addConnection(connectFirst, near);
+        setGesture('Connected!');
+        connectFirst=null; selectedObj=null;
+        document.getElementById('sel-disp').textContent='—';
+      } else if (near && !connectFirst) {
+        connectFirst=near; selectedObj=near;
+        document.getElementById('sel-disp').textContent=near.userData.shape;
+        setGesture('First selected — fist/pinch second');
+      }
+    } else if (!isPinch) rightPinch=false;
+    return;
+  }
+
+  if (isPinch && !rightPinch) {
+    rightPinch=true; prevRightPos={x:cx,y:cy};
+    document.getElementById('mode-disp').textContent='Rotate';
+    const near = nearestObj(wx,wy)||(objects.length?objects[objects.length-1]:null);
+    if (near) { selectedObj=near; document.getElementById('sel-disp').textContent=near.userData.shape; setGesture('Rotating'); }
+  } else if (isPinch && rightPinch && prevRightPos && selectedObj) {
+    const dx=(cx-prevRightPos.x)*8, dy=(cy-prevRightPos.y)*8;
+    selectedObj.rotation.y+=dx; selectedObj.rotation.x+=dy;
+    selectedObj.userData.rotVel.y=dx*.4; selectedObj.userData.rotVel.x=dy*.4;
+    prevRightPos={x:cx,y:cy};
+  } else if (!isPinch && rightPinch) {
+    rightPinch=false; prevRightPos=null;
+    document.getElementById('mode-disp').textContent='Place';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SKELETON DRAW
+// ═══════════════════════════════════════════════════════════════════════
+const CONN2D=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]];
+
+function drawSkeleton(lm, active, cx, cy, isLeft) {
+  const W=overlayCanvas.width, H=overlayCanvas.height;
   overlayCtx.save();
-  overlayCtx.translate(W, 0);
-  overlayCtx.scale(-1, 1);
+  overlayCtx.translate(W,0); overlayCtx.scale(-1,1);
+  overlayCtx.strokeStyle=NEON_CSS;
+  overlayCtx.lineWidth=active?2:1.5;
+  overlayCtx.shadowColor=NEON_CSS;
+  overlayCtx.shadowBlur=active?18:6;
+  overlayCtx.globalAlpha=active?1:.72;
 
-  overlayCtx.strokeStyle = NEON_CSS;
-  overlayCtx.lineWidth = 1.5;
-  overlayCtx.shadowColor = NEON_CSS;
-  overlayCtx.shadowBlur = pinching ? 14 : 6;
-  overlayCtx.globalAlpha = pinching ? 1 : 0.75;
-
-  CONNECTIONS.forEach(([a, b]) => {
+  CONN2D.forEach(([a,b])=>{
     overlayCtx.beginPath();
-    overlayCtx.moveTo(lm[a].x * W, lm[a].y * H);
-    overlayCtx.lineTo(lm[b].x * W, lm[b].y * H);
+    overlayCtx.moveTo(lm[a].x*W,lm[a].y*H);
+    overlayCtx.lineTo(lm[b].x*W,lm[b].y*H);
     overlayCtx.stroke();
   });
 
-  lm.forEach((pt, i) => {
+  lm.forEach((pt,i)=>{
+    const highlight=isLeft&&active&&(i===4||i===17);
+    const r=i===0?5:highlight?5:2.5;
     overlayCtx.beginPath();
-    overlayCtx.arc(pt.x * W, pt.y * H, i === 0 ? 5 : 2.5, 0, Math.PI * 2);
-    overlayCtx.fillStyle = NEON_CSS;
+    overlayCtx.arc(pt.x*W,pt.y*H,r,0,Math.PI*2);
+    overlayCtx.fillStyle=highlight?'#fff':NEON_CSS;
     overlayCtx.fill();
   });
 
-  if (pinching) {
-    const cx = center.x * W, cy = center.y * H;
+  if (active) {
     overlayCtx.beginPath();
-    overlayCtx.arc(cx, cy, 16, 0, Math.PI * 2);
-    overlayCtx.strokeStyle = '#ffffff';
-    overlayCtx.globalAlpha = 0.9;
-    overlayCtx.lineWidth = 1.5;
-    overlayCtx.shadowBlur = 20;
-    overlayCtx.shadowColor = '#ffffff';
+    overlayCtx.arc(cx*W,cy*H,20,0,Math.PI*2);
+    overlayCtx.strokeStyle='#fff'; overlayCtx.globalAlpha=.8;
+    overlayCtx.lineWidth=1.5; overlayCtx.shadowBlur=24;
     overlayCtx.stroke();
   }
   overlayCtx.restore();
 }
 
-// ── GESTURE LABEL ─────────────────────────────────────────────────────────────
-let gestureTimer = 0;
-function setGesture(msg) {
-  document.getElementById('gesture-label').textContent = msg;
-  gestureTimer = 90;
+// ═══════════════════════════════════════════════════════════════════════
+// GESTURE LABEL
+// ═══════════════════════════════════════════════════════════════════════
+let gestureTimer=0;
+function setGesture(msg){ document.getElementById('glabel').textContent=msg; gestureTimer=100; }
+
+// ═══════════════════════════════════════════════════════════════════════
+// SCROLL ZOOM (Z depth)
+// ═══════════════════════════════════════════════════════════════════════
+addEventListener('wheel', e=>{
+  e.preventDefault();
+  const d=e.deltaY*(e.deltaMode===1?30:1);
+  depthTarget=Math.max(DEPTH_MIN,Math.min(DEPTH_MAX,depthTarget+d*.015));
+  if(selectedObj) selectedObj.position.z=CAM_Z-depthTarget;
+  updateDepthUI();
+},{passive:false});
+
+let lastTD=null;
+addEventListener('touchmove',e=>{
+  if(e.touches.length===2){
+    const dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    if(lastTD!==null){depthTarget=Math.max(DEPTH_MIN,Math.min(DEPTH_MAX,depthTarget+(lastTD-dist)*.05));if(selectedObj)selectedObj.position.z=CAM_Z-depthTarget;updateDepthUI();}
+    lastTD=dist;
+  }
+},{passive:true});
+addEventListener('touchend',()=>{lastTD=null;});
+
+function updateDepthUI(){
+  document.getElementById('depth-disp').textContent=depthTarget.toFixed(1);
+  const frac=(depthTarget-DEPTH_MIN)/(DEPTH_MAX-DEPTH_MIN);
+  document.getElementById('zthumb').style.top=(frac*90)+'px';
 }
 
-// ── ANIMATE ───────────────────────────────────────────────────────────────────
-function animate(now) {
+// ═══════════════════════════════════════════════════════════════════════
+// ANIMATE
+// ═══════════════════════════════════════════════════════════════════════
+function animate(now){
   requestAnimationFrame(animate);
-  const dt = now - lastFrameTime;
-  lastFrameTime = now;
+  const dt=now-lastFrameTime; lastFrameTime=now;
+  if(Math.floor(now/500)!==Math.floor((now-dt)/500))
+    document.getElementById('fps').textContent=Math.round(1000/(dt||16))+' fps';
 
-  if (Math.floor(now / 500) !== Math.floor((now - dt) / 500)) {
-    document.getElementById('fps-badge').textContent = Math.round(1000 / (dt || 16)) + ' fps';
-  }
+  if(spawnCooldown>0) spawnCooldown--;
+  if(gestureTimer>0&&--gestureTimer===0) document.getElementById('glabel').textContent='Awaiting input';
 
-  if (spawnCooldown > 0) spawnCooldown--;
-  if (gestureTimer > 0 && --gestureTimer === 0) {
-    document.getElementById('gesture-label').textContent = 'Awaiting input';
-  }
+  currentDepth+=(depthTarget-currentDepth)*.12;
+  updateConnections();
 
-  // Smooth zoom
-  camera3d.position.z += (zoomTarget - camera3d.position.z) * 0.1;
-
-  objects.forEach(obj => {
-    if (obj === dragObj) return;
-    if (!rightPinch || obj !== selectedObj) {
-      obj.rotation.y += obj.userData.rotVel.y;
-      obj.rotation.x += obj.userData.rotVel.x;
-      obj.userData.rotVel.y *= 0.985;
-      obj.userData.rotVel.x *= 0.985;
+  objects.forEach(obj=>{
+    if(obj===dragObj) return;
+    if(!rightPinch||obj!==selectedObj){
+      obj.rotation.y+=obj.userData.rotVel.y; obj.rotation.x+=obj.userData.rotVel.x;
+      obj.userData.rotVel.y*=.985; obj.userData.rotVel.x*=.985;
     }
-    // Pulse wire opacity
-    const p = (Math.sin(now * 0.002 + obj.userData.pulsePhase) + 1) / 2;
-    const wire = obj.children[0];
-    if (wire?.material) wire.material.opacity = 0.55 + p * 0.4;
 
-    // Gentle bob
-    obj.position.y += Math.sin(now * 0.0008 + obj.userData.pulsePhase) * 0.0012;
+    // Pulse opacity for hollow, glow for solid
+    const p=(Math.sin(now*.002+obj.userData.pulsePhase)+1)/2;
+    if(obj.userData.fill==='hollow'){
+      if(obj.children[0]?.material) obj.children[0].material.opacity=0.5+p*.45;
+    } else {
+      if(obj.children[0]?.material) obj.children[0].material.opacity=0.75+p*.2;
+    }
 
-    // Selection highlight
-    const sel = obj === selectedObj;
-    obj.children.forEach(c => {
-      if (c.material?.color) {
-        if (sel) {
-          const v = 0.85 + (Math.sin(now * 0.006) + 1) * 0.075;
-          c.material.color.setRGB(v * 0, v * 0.83, v);
-        } else {
-          c.material.color.setHex(NEON);
-        }
+    obj.position.y+=Math.sin(now*.0008+obj.userData.pulsePhase)*.0012;
+
+    const sel=obj===selectedObj||obj===connectFirst;
+    obj.children.forEach(c=>{
+      if(!c.material?.color) return;
+      if(sel){
+        const v=.85+(Math.sin(now*.006)+1)*.075;
+        if(obj.userData.fill==='solid') c.material.color.setRGB(0,v*.83,v);
+        else c.material.color.setRGB(0,v*.83,v);
+      } else {
+        c.material.color.setHex(NEON);
       }
     });
   });
 
-  renderer3d.render(scene3d, camera3d);
+  // Pulse connection lines
+  connections.forEach(c=>{
+    const p=(Math.sin(now*.003)+1)/2;
+    c.line.material.opacity=0.35+p*.45;
+  });
+
+  renderer3d.render(scene3d,camera3d);
 }
 
-// ── CAMERA INIT ───────────────────────────────────────────────────────────────
-function initCamera() {
-  const btn = document.getElementById('splash-btn');
-  btn.style.display = 'none';
-  document.getElementById('load-bar-wrap').classList.add('visible');
-  document.getElementById('load-bar-fill').style.width = '30%';
-  const lt = document.getElementById('load-text');
-  lt.style.display = 'block';
-  lt.textContent = 'Requesting camera...';
+// ═══════════════════════════════════════════════════════════════════════
+// CAMERA / MEDIAPIPE INIT
+// ═══════════════════════════════════════════════════════════════════════
+function startCamera(){
+  document.getElementById('splash-btn').style.display='none';
+  document.getElementById('lw').classList.add('v');
+  document.getElementById('lf').style.width='25%';
+  const lt=document.getElementById('lt');
+  lt.style.display='block'; lt.textContent='Requesting camera…';
 
-  hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
-  hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.6 });
-  hands.onResults(onHandResults);
+  mpHands=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+  mpHands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:.72,minTrackingConfidence:.65});
+  mpHands.onResults(onHandResults);
 
-  navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: 'user' } })
-    .then(stream => {
-      webcamEl.srcObject = stream;
-      webcamEl.onloadedmetadata = () => {
+  navigator.mediaDevices.getUserMedia({video:{width:1280,height:720,facingMode:'user'}})
+    .then(stream=>{
+      webcamEl.srcObject=stream;
+      webcamEl.onloadedmetadata=()=>{
         webcamEl.play();
-        document.getElementById('load-bar-fill').style.width = '70%';
-        lt.textContent = 'Loading hand tracking…';
-
-        mpCamera = new Camera(webcamEl, {
-          onFrame: async () => { await hands.send({ image: webcamEl }); },
-          width: 1280, height: 720
-        });
+        document.getElementById('lf').style.width='70%';
+        lt.textContent='Loading hand tracking…';
+        mpCamera=new Camera(webcamEl,{onFrame:async()=>{await mpHands.send({image:webcamEl});},width:1280,height:720});
         mpCamera.start();
-
-        document.getElementById('load-bar-fill').style.width = '100%';
-        const badge = document.getElementById('sys-badge');
-        badge.textContent = ' Active';
-        badge.innerHTML = '<span></span>Active';
-        badge.classList.add('active');
-
-        setTimeout(() => {
-          const splash = document.getElementById('splash');
-          splash.style.opacity = '0';
-          setTimeout(() => splash.style.display = 'none', 600);
-        }, 800);
+        document.getElementById('lf').style.width='100%';
+        document.getElementById('sdot').classList.add('live');
+        document.getElementById('stxt').textContent='Active';
+        setTimeout(()=>{const s=document.getElementById('splash');s.style.opacity='0';setTimeout(()=>s.style.display='none',600);},700);
       };
     })
-    .catch(() => {
-      lt.textContent = 'Camera access denied.';
-      btn.style.display = 'block';
-    });
+    .catch(()=>{lt.textContent='Camera access denied.';document.getElementById('splash-btn').style.display='block';});
 }
 
-// ── ZOOM ──────────────────────────────────────────────────────────────────────
-let zoomTarget = 10;
-const ZOOM_MIN = 3, ZOOM_MAX = 22;
-
-window.addEventListener('wheel', e => {
-  e.preventDefault();
-  const delta = e.deltaY * (e.deltaMode === 1 ? 30 : 1); // line vs pixel mode
-  zoomTarget = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomTarget + delta * 0.012));
-  updateZoomDisplay();
-}, { passive: false });
-
-// Touch pinch-to-zoom
-let lastPinchDist = null;
-window.addEventListener('touchmove', e => {
-  if (e.touches.length === 2) {
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    const dist = Math.hypot(dx, dy);
-    if (lastPinchDist !== null) {
-      const delta = lastPinchDist - dist;
-      zoomTarget = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomTarget + delta * 0.05));
-      updateZoomDisplay();
-    }
-    lastPinchDist = dist;
-  }
-}, { passive: true });
-window.addEventListener('touchend', () => { lastPinchDist = null; });
-
-function updateZoomDisplay() {
-  const pct = Math.round(100 * (ZOOM_MAX - zoomTarget) / (ZOOM_MAX - ZOOM_MIN));
-  const el = document.getElementById('zoom-display');
-  if (el) el.textContent = pct + '%';
-}
-
-// ── BOOT ──────────────────────────────────────────────────────────────────────
-overlayCanvas.width = window.innerWidth;
-overlayCanvas.height = window.innerHeight;
+// ═══════════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════════
+overlayCanvas.width=innerWidth; overlayCanvas.height=innerHeight;
+updateDepthUI();
 initThree();
 </script>
 </body>
