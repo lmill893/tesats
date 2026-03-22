@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L — Holographic Builder</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --neon: #00d4ff;
+    --neon-glow: 0 0 8px #00d4ff, 0 0 20px rgba(0,212,255,0.5);
+    --ui-bg: #f5f3ef;
+    --ui-text: #1a1a1a;
+    --ui-muted: #888;
+    --ui-border: #d8d4cc;
+    --ui-accent: #1a1a1a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--ui-bg);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--ui-text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ── CAMERA VIEWPORT (neon world lives here) ── */
+  #camera-viewport {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+  }
+
+  #webcam-feed {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0.13;
+    transform: scaleX(-1);
+    filter: hue-rotate(170deg) saturate(2) brightness(0.5);
+  }
+
+  #overlay-canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    transform: scaleX(-1);
+    z-index: 1;
+  }
+
+  #scene {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* ── PANEL CHROME (clean editorial) ── */
+  #ui-layer {
+    position: fixed; inset: 0;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  /* Top bar */
+  #topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    background: rgba(245,243,239,0.88);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--ui-border);
+    display: flex;
+    align-items: center;
+    padding: 0 28px;
+    justify-content: space-between;
+    z-index: 20;
+    pointer-events: all;
+  }
+
+  #logo {
+    font-family: 'EB Garamond', serif;
+    font-size: 32px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--ui-text);
+    line-height: 1;
+  }
+
+  #topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  #sys-badge {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--ui-muted);
+    letter-spacing: 0.05em;
+  }
+
+  #sys-badge span {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #ccc;
+    margin-right: 6px;
+    vertical-align: middle;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+
+  #sys-badge.active span {
+    background: var(--neon);
+    box-shadow: var(--neon-glow);
+  }
+
+  #fps-badge {
+    font-size: 11px;
+    color: var(--ui-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Left sidebar */
+  #sidebar {
+    position: fixed;
+    top: 56px; left: 0; bottom: 0;
+    width: 72px;
+    background: rgba(245,243,239,0.82);
+    backdrop-filter: blur(12px);
+    border-right: 1px solid var(--ui-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 0;
+    gap: 6px;
+    z-index: 20;
+    pointer-events: all;
+  }
+
+  .shape-btn {
+    width: 44px; height: 44px;
+    border: 1px solid var(--ui-border);
+    background: transparent;
+    color: var(--ui-muted);
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .shape-btn:hover {
+    border-color: var(--ui-text);
+    color: var(--ui-text);
+    background: rgba(0,0,0,0.04);
+  }
+
+  .shape-btn.active {
+    border-color: var(--ui-text);
+    background: var(--ui-text);
+    color: var(--ui-bg);
+  }
+
+  .shape-label {
+    font-size: 8px;
+    letter-spacing: 0.08em;
+    color: var(--ui-muted);
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  .shape-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .sidebar-divider {
+    width: 28px;
+    height: 1px;
+    background: var(--ui-border);
+    margin: 10px 0;
+  }
+
+  .clear-btn {
+    width: 44px; height: 44px;
+    border: 1px solid var(--ui-border);
+    background: transparent;
+    color: var(--ui-muted);
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: 0.03em;
+  }
+  .clear-btn:hover {
+    border-color: #c00;
+    color: #c00;
+  }
+
+  /* Right info panel */
+  #info-panel {
+    position: fixed;
+    top: 56px; right: 0;
+    width: 200px;
+    background: rgba(245,243,239,0.82);
+    backdrop-filter: blur(12px);
+    border-left: 1px solid var(--ui-border);
+    padding: 20px 18px;
+    z-index: 20;
+    pointer-events: none;
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--ui-border);
+  }
+
+  .info-row:last-child { border-bottom: none; }
+
+  .info-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ui-muted);
+    font-weight: 400;
+  }
+
+  .info-value {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ui-text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .info-value.live {
+    color: var(--neon);
+    text-shadow: var(--neon-glow);
+    font-family: 'DM Sans', monospace;
+  }
+
+  /* Bottom gesture hint */
+  #gesture-bar {
+    position: fixed;
+    bottom: 0; left: 72px; right: 0;
+    height: 44px;
+    background: rgba(245,243,239,0.88);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--ui-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 48px;
+    z-index: 20;
+    pointer-events: none;
+  }
+
+  .hint {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--ui-muted);
+  }
+
+  .hint-key {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--ui-text);
+    border: 1px solid var(--ui-border);
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: 0.05em;
+  }
+
+  #gesture-label {
+    font-size: 12px;
+    color: var(--ui-text);
+    font-style: italic;
+    font-family: 'EB Garamond', serif;
+    min-width: 180px;
+    text-align: center;
+  }
+
+  /* Splash screen */
+  #splash {
+    position: fixed; inset: 0;
+    z-index: 100;
+    background: var(--ui-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    transition: opacity 0.6s;
+  }
+
+  #splash-logo {
+    font-family: 'EB Garamond', serif;
+    font-size: 96px;
+    font-weight: 400;
+    letter-spacing: -0.04em;
+    color: var(--ui-text);
+    line-height: 1;
+  }
+
+  #splash-sub {
+    font-size: 12px;
+    color: var(--ui-muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 300;
+  }
+
+  #splash-btn {
+    margin-top: 24px;
+    padding: 11px 36px;
+    background: var(--ui-text);
+    border: none;
+    color: var(--ui-bg);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: opacity 0.2s;
+  }
+  #splash-btn:hover { opacity: 0.75; }
+
+  #splash-divider {
+    width: 1px;
+    height: 40px;
+    background: var(--ui-border);
+    margin: 8px 0;
+  }
+
+  /* Loading bar */
+  #load-bar-wrap {
+    width: 120px; height: 1px;
+    background: var(--ui-border);
+    display: none;
+    position: relative;
+    overflow: hidden;
+  }
+  #load-bar-wrap.visible { display: block; }
+  #load-bar-fill {
+    position: absolute; top: 0; left: 0;
+    height: 100%;
+    background: var(--ui-text);
+    width: 0%;
+    transition: width 1.5s ease;
+  }
+
+  #load-text {
+    font-size: 10px;
+    color: var(--ui-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<!-- CAMERA WORLD (neon lives here) -->
+<div id="camera-viewport">
+  <video id="webcam-feed" autoplay muted playsinline></video>
+  <canvas id="overlay-canvas"></canvas>
+  <canvas id="scene"></canvas>
+</div>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div id="splash-logo">L</div>
+  <div id="splash-divider"></div>
+  <div id="splash-sub">Holographic Object Builder</div>
+  <button id="splash-btn" onclick="initCamera()">Begin</button>
+  <div id="load-bar-wrap"><div id="load-bar-fill"></div></div>
+  <div id="load-text" style="display:none"></div>
+</div>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div id="logo">L</div>
+  <div id="topbar-right">
+    <div id="fps-badge">-- fps</div>
+    <div id="sys-badge"><span></span>Standby</div>
+  </div>
+</div>
+
+<!-- LEFT SIDEBAR -->
+<div id="sidebar">
+  <div class="shape-group">
+    <button class="shape-btn active" id="tool-cube" onclick="setShape('cube')" title="Cube">⬡</button>
+    <div class="shape-label">Cube</div>
+  </div>
+  <div class="shape-group">
+    <button class="shape-btn" id="tool-sphere" onclick="setShape('sphere')" title="Sphere">○</button>
+    <div class="shape-label">Sphere</div>
+  </div>
+  <div class="shape-group">
+    <button class="shape-btn" id="tool-pyramid" onclick="setShape('pyramid')" title="Pyramid">△</button>
+    <div class="shape-label">Pyramid</div>
+  </div>
+  <div class="shape-group">
+    <button class="shape-btn" id="tool-torus" onclick="setShape('torus')" title="Torus">◎</button>
+    <div class="shape-label">Torus</div>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="shape-group">
+    <button class="clear-btn" onclick="clearObjects()" title="Clear all">✕</button>
+    <div class="shape-label">Clear</div>
+  </div>
+</div>
+
+<!-- RIGHT INFO -->
+<div id="info-panel">
+  <div class="info-row">
+    <span class="info-label">Objects</span>
+    <span class="info-value" id="obj-count">0</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">Selected</span>
+    <span class="info-value" id="sel-display">—</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">Mode</span>
+    <span class="info-value" id="mode-display">Place</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">Left hand</span>
+    <span class="info-value" id="left-status">—</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">Right hand</span>
+    <span class="info-value" id="right-status">—</span>
+  </div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div id="gesture-bar">
+  <div class="hint"><span class="hint-key">Left pinch</span> Place · Move</div>
+  <div id="gesture-label">Awaiting input</div>
+  <div class="hint"><span class="hint-key">Right pinch</span> Rotate</div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+<script>
+const NEON = 0x00d4ff;
+const NEON_CSS = '#00d4ff';
+
+let scene3d, camera3d, renderer3d;
+let hands, mpCamera;
+let webcamEl = document.getElementById('webcam-feed');
+let overlayCanvas = document.getElementById('overlay-canvas');
+let overlayCtx = overlayCanvas.getContext('2d');
+let sceneCanvas = document.getElementById('scene');
+
+let objects = [];
+let selectedObj = null;
+let currentShape = 'cube';
+let lastFrameTime = 0;
+
+let leftPinch = false, rightPinch = false;
+let leftPinchPos = null;
+let prevRightPinchPos = null;
+let isDragging = false, dragObj = null;
+let spawnCooldown = 0;
+
+// ── THREE SETUP ───────────────────────────────────────────────────────────────
+function initThree() {
+  scene3d = new THREE.Scene();
+  camera3d = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera3d.position.set(0, 0, 10);
+
+  renderer3d = new THREE.WebGLRenderer({ canvas: sceneCanvas, antialias: true, alpha: true });
+  renderer3d.setSize(window.innerWidth, window.innerHeight);
+  renderer3d.setClearColor(0x000000, 0);
+  renderer3d.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  const pt = new THREE.PointLight(NEON, 1.5, 60);
+  pt.position.set(4, 4, 6);
+  scene3d.add(pt);
+
+  window.addEventListener('resize', () => {
+    camera3d.aspect = window.innerWidth / window.innerHeight;
+    camera3d.updateProjectionMatrix();
+    renderer3d.setSize(window.innerWidth, window.innerHeight);
+    overlayCanvas.width = window.innerWidth;
+    overlayCanvas.height = window.innerHeight;
+  });
+
+  requestAnimationFrame(animate);
+}
+
+// ── OBJECT CREATION ───────────────────────────────────────────────────────────
+function makeObject(shape) {
+  const geos = {
+    cube:    new THREE.BoxGeometry(1.5, 1.5, 1.5, 3, 3, 3),
+    sphere:  new THREE.SphereGeometry(0.9, 14, 10),
+    pyramid: new THREE.ConeGeometry(1, 1.8, 5),
+    torus:   new THREE.TorusGeometry(0.8, 0.22, 10, 28),
+  };
+  const geo = geos[shape] || geos.cube;
+
+  const group = new THREE.Group();
+
+  // Wireframe
+  const wire = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    color: NEON, wireframe: true, transparent: true, opacity: 0.85
+  }));
+  group.add(wire);
+
+  // Sharp edges
+  const edgeGeo = new THREE.EdgesGeometry(geo);
+  const edgeLines = new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({
+    color: NEON, transparent: true, opacity: 1
+  }));
+  group.add(edgeLines);
+
+  group.userData = {
+    shape, pulsePhase: Math.random() * Math.PI * 2,
+    rotVel: { x: 0.002, y: 0.004 }
+  };
+  return group;
+}
+
+function spawnAt(sx, sy) {
+  const obj = makeObject(currentShape);
+  obj.position.copy(screenToWorld(sx, sy, 8));
+  obj.rotation.set(Math.random() * 0.4, Math.random() * Math.PI * 2, 0);
+  scene3d.add(obj);
+  objects.push(obj);
+  document.getElementById('obj-count').textContent = objects.length;
+  // Pop in
+  obj.scale.setScalar(0.01);
+  const t0 = performance.now();
+  (function grow(now) {
+    const p = Math.min((now - t0) / 280, 1);
+    obj.scale.setScalar(1 - Math.pow(1 - p, 3));
+    if (p < 1) requestAnimationFrame(grow);
+  })(performance.now());
+  return obj;
+}
+
+function clearObjects() {
+  objects.forEach(o => scene3d.remove(o));
+  objects = []; selectedObj = null;
+  document.getElementById('obj-count').textContent = '0';
+  document.getElementById('sel-display').textContent = '—';
+}
+
+function setShape(s) {
+  currentShape = s;
+  document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tool-' + s).classList.add('active');
+}
+
+// ── COORDS ────────────────────────────────────────────────────────────────────
+function screenToWorld(sx, sy, depth) {
+  const x = (sx - 0.5) * 2, y = -(sy - 0.5) * 2;
+  const fov = camera3d.fov * Math.PI / 180;
+  const halfH = Math.tan(fov / 2) * depth;
+  const halfW = halfH * camera3d.aspect;
+  return new THREE.Vector3(x * halfW, y * halfH, camera3d.position.z - depth);
+}
+
+function nearestObj(sx, sy) {
+  const wp = screenToWorld(sx, sy, 8);
+  let best = null, bestD = 1.8;
+  objects.forEach(o => { const d = o.position.distanceTo(wp); if (d < bestD) { bestD = d; best = o; } });
+  return best;
+}
+
+// ── HAND RESULTS ──────────────────────────────────────────────────────────────
+function onHandResults(results) {
+  overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  overlayCanvas.width = window.innerWidth;
+  overlayCanvas.height = window.innerHeight;
+
+  if (!results.multiHandLandmarks?.length) {
+    document.getElementById('left-status').textContent = '—';
+    document.getElementById('right-status').textContent = '—';
+    if (isDragging) { isDragging = false; dragObj = null; }
+    return;
+  }
+
+  results.multiHandLandmarks.forEach((lm, i) => {
+    const label = results.multiHandedness[i].label; // mediapipe mirrors: 'Right' = user's left
+    const isLeft = label === 'Right';
+    const pd = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
+    const pinching = pd < 0.046;
+    const center = { x: (lm[4].x + lm[8].x) / 2, y: (lm[4].y + lm[8].y) / 2 };
+
+    if (isLeft) {
+      document.getElementById('left-status').textContent = pinching ? 'Pinching' : 'Open';
+      handleLeft(lm, pinching, center);
+    } else {
+      document.getElementById('right-status').textContent = pinching ? 'Pinching' : 'Open';
+      handleRight(lm, pinching, center);
+    }
+
+    drawSkeleton(lm, pinching, center);
+  });
+}
+
+function handleLeft(lm, pinching, center) {
+  if (pinching && !leftPinch) {
+    leftPinch = true;
+    const near = nearestObj(1 - center.x, center.y);
+    if (near) {
+      isDragging = true; dragObj = near; selectedObj = near;
+      document.getElementById('sel-display').textContent = near.userData.shape;
+      document.getElementById('mode-display').textContent = 'Move';
+      setGesture('Moving object');
+    } else if (spawnCooldown <= 0) {
+      const o = spawnAt(1 - center.x, center.y);
+      selectedObj = o;
+      document.getElementById('sel-display').textContent = o.userData.shape;
+      document.getElementById('mode-display').textContent = 'Place';
+      setGesture('Object placed');
+      spawnCooldown = 18;
+    }
+  } else if (pinching && leftPinch) {
+    if (isDragging && dragObj) {
+      const wp = screenToWorld(1 - center.x, center.y, 8);
+      dragObj.position.lerp(wp, 0.25);
+    }
+  } else if (!pinching && leftPinch) {
+    leftPinch = false; isDragging = false; dragObj = null;
+    document.getElementById('mode-display').textContent = 'Place';
+  }
+  leftPinchPos = center;
+}
+
+function handleRight(lm, pinching, center) {
+  if (pinching && !rightPinch) {
+    rightPinch = true;
+    prevRightPinchPos = center;
+    document.getElementById('mode-display').textContent = 'Rotate';
+    const near = nearestObj(1 - center.x, center.y) || (objects.length ? objects[objects.length - 1] : null);
+    if (near) {
+      selectedObj = near;
+      document.getElementById('sel-display').textContent = near.userData.shape;
+      setGesture('Rotating object');
+    }
+  } else if (pinching && rightPinch && prevRightPinchPos && selectedObj) {
+    const dx = (center.x - prevRightPinchPos.x) * 8;
+    const dy = (center.y - prevRightPinchPos.y) * 8;
+    selectedObj.rotation.y += dx;
+    selectedObj.rotation.x += dy;
+    selectedObj.userData.rotVel.y = dx * 0.4;
+    selectedObj.userData.rotVel.x = dy * 0.4;
+    prevRightPinchPos = center;
+  } else if (!pinching && rightPinch) {
+    rightPinch = false; prevRightPinchPos = null;
+    document.getElementById('mode-display').textContent = 'Place';
+  }
+}
+
+// ── DRAW SKELETON ─────────────────────────────────────────────────────────────
+const CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [0,9],[9,10],[10,11],[11,12],
+  [0,13],[13,14],[14,15],[15,16],
+  [0,17],[17,18],[18,19],[19,20],
+  [5,9],[9,13],[13,17]
+];
+
+function drawSkeleton(lm, pinching, center) {
+  const W = overlayCanvas.width, H = overlayCanvas.height;
+  overlayCtx.save();
+  overlayCtx.strokeStyle = NEON_CSS;
+  overlayCtx.lineWidth = 1.5;
+  overlayCtx.shadowColor = NEON_CSS;
+  overlayCtx.shadowBlur = pinching ? 14 : 6;
+  overlayCtx.globalAlpha = pinching ? 1 : 0.75;
+
+  CONNECTIONS.forEach(([a, b]) => {
+    overlayCtx.beginPath();
+    overlayCtx.moveTo((1 - lm[a].x) * W, lm[a].y * H);
+    overlayCtx.lineTo((1 - lm[b].x) * W, lm[b].y * H);
+    overlayCtx.stroke();
+  });
+
+  lm.forEach((pt, i) => {
+    overlayCtx.beginPath();
+    overlayCtx.arc((1 - pt.x) * W, pt.y * H, i === 0 ? 5 : 2.5, 0, Math.PI * 2);
+    overlayCtx.fillStyle = NEON_CSS;
+    overlayCtx.fill();
+  });
+
+  if (pinching) {
+    const cx = (1 - center.x) * W, cy = center.y * H;
+    overlayCtx.beginPath();
+    overlayCtx.arc(cx, cy, 16, 0, Math.PI * 2);
+    overlayCtx.strokeStyle = '#ffffff';
+    overlayCtx.globalAlpha = 0.9;
+    overlayCtx.lineWidth = 1.5;
+    overlayCtx.shadowBlur = 20;
+    overlayCtx.shadowColor = '#ffffff';
+    overlayCtx.stroke();
+  }
+  overlayCtx.restore();
+}
+
+// ── GESTURE LABEL ─────────────────────────────────────────────────────────────
+let gestureTimer = 0;
+function setGesture(msg) {
+  document.getElementById('gesture-label').textContent = msg;
+  gestureTimer = 90;
+}
+
+// ── ANIMATE ───────────────────────────────────────────────────────────────────
+function animate(now) {
+  requestAnimationFrame(animate);
+  const dt = now - lastFrameTime;
+  lastFrameTime = now;
+
+  if (Math.floor(now / 500) !== Math.floor((now - dt) / 500)) {
+    document.getElementById('fps-badge').textContent = Math.round(1000 / (dt || 16)) + ' fps';
+  }
+
+  if (spawnCooldown > 0) spawnCooldown--;
+  if (gestureTimer > 0 && --gestureTimer === 0) {
+    document.getElementById('gesture-label').textContent = 'Awaiting input';
+  }
+
+  objects.forEach(obj => {
+    if (obj === dragObj) return;
+    if (!rightPinch || obj !== selectedObj) {
+      obj.rotation.y += obj.userData.rotVel.y;
+      obj.rotation.x += obj.userData.rotVel.x;
+      obj.userData.rotVel.y *= 0.985;
+      obj.userData.rotVel.x *= 0.985;
+    }
+    // Pulse wire opacity
+    const p = (Math.sin(now * 0.002 + obj.userData.pulsePhase) + 1) / 2;
+    const wire = obj.children[0];
+    if (wire?.material) wire.material.opacity = 0.55 + p * 0.4;
+
+    // Gentle bob
+    obj.position.y += Math.sin(now * 0.0008 + obj.userData.pulsePhase) * 0.0012;
+
+    // Selection highlight
+    const sel = obj === selectedObj;
+    obj.children.forEach(c => {
+      if (c.material?.color) {
+        if (sel) {
+          const v = 0.85 + (Math.sin(now * 0.006) + 1) * 0.075;
+          c.material.color.setRGB(v * 0, v * 0.83, v);
+        } else {
+          c.material.color.setHex(NEON);
+        }
+      }
+    });
+  });
+
+  renderer3d.render(scene3d, camera3d);
+}
+
+// ── CAMERA INIT ───────────────────────────────────────────────────────────────
+function initCamera() {
+  const btn = document.getElementById('splash-btn');
+  btn.style.display = 'none';
+  document.getElementById('load-bar-wrap').classList.add('visible');
+  document.getElementById('load-bar-fill').style.width = '30%';
+  const lt = document.getElementById('load-text');
+  lt.style.display = 'block';
+  lt.textContent = 'Requesting camera...';
+
+  hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+  hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.6 });
+  hands.onResults(onHandResults);
+
+  navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: 'user' } })
+    .then(stream => {
+      webcamEl.srcObject = stream;
+      webcamEl.onloadedmetadata = () => {
+        webcamEl.play();
+        document.getElementById('load-bar-fill').style.width = '70%';
+        lt.textContent = 'Loading hand tracking…';
+
+        mpCamera = new Camera(webcamEl, {
+          onFrame: async () => { await hands.send({ image: webcamEl }); },
+          width: 1280, height: 720
+        });
+        mpCamera.start();
+
+        document.getElementById('load-bar-fill').style.width = '100%';
+        const badge = document.getElementById('sys-badge');
+        badge.textContent = ' Active';
+        badge.innerHTML = '<span></span>Active';
+        badge.classList.add('active');
+
+        setTimeout(() => {
+          const splash = document.getElementById('splash');
+          splash.style.opacity = '0';
+          setTimeout(() => splash.style.display = 'none', 600);
+        }, 800);
+      };
+    })
+    .catch(() => {
+      lt.textContent = 'Camera access denied.';
+      btn.style.display = 'block';
+    });
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+overlayCanvas.width = window.innerWidth;
+overlayCanvas.height = window.innerHeight;
+initThree();
+</script>
+</body>
+</html>
