@@ -203,8 +203,8 @@ body.bg-camera #wf{opacity:1}
 </div>
 
 <div id="bb">
-  <div class="hint"><span class="hk">L. fist</span> Place · Move</div>
-  <div class="hint"><span class="hk">Hold fist</span> Paint line</div>
+  <div class="hint"><span class="hk">L. pinch</span> Place · Move</div>
+  <div class="hint"><span class="hk">Hold pinch</span> Paint line</div>
   <div id="gl">Awaiting input</div>
   <div class="hint"><span class="hk">R. pinch</span> Rotate · Connect</div>
   <div class="hint"><span class="hk">Scroll</span> Z depth</div>
@@ -223,8 +223,7 @@ const NC     = '#00d4ff';
 const CAM_Z  = 14;
 const DMIN   = 2,  DMAX   = 18;
 const OBJ_SIZE = 1.4;          // face-to-face spacing (matches cube side length)
-// Gesture hysteresis — need to be closer to activate than to release
-const FIST_ON  = 0.11,  FIST_OFF  = 0.16;
+// Gesture hysteresis thresholds (activate closer, release wider)
 const PINCH_ON = 0.042, PINCH_OFF = 0.065;
 
 // ═══════════════════════════════════════════
@@ -291,9 +290,9 @@ function setMode(m) {
   connFirst=null; selObj=null; $('i-s').textContent='—';
   $('i-m').textContent = m[0].toUpperCase()+m.slice(1);
   const hints = {
-    place:   'Fist to place · hold & drag to move',
+    place:   'L. pinch to place · hold & drag to move',
     paint:   'Hold fist — move to paint a straight line',
-    connect: 'Fist near obj 1 · then pinch near obj 2'
+    connect: 'Pinch near obj 1, then obj 2 to snap faces'
   };
   msg(hints[m], true);
 }
@@ -617,10 +616,10 @@ function onResults(res) {
     // MediaPipe mirrors: label 'Right' = user's left hand
     const isLeft = res.multiHandedness[i].label === 'Right';
 
-    // ── Fist: thumb-tip (4) ↔ pinky-base (17) distance ──
-    const fd = Math.hypot(lm[4].x-lm[17].x, lm[4].y-lm[17].y);
+    // ── Left gesture: thumb-tip (4) ↔ index-tip (8) pinch ──
+    const fd = Math.hypot(lm[4].x-lm[8].x, lm[4].y-lm[8].y);
     // Hysteresis: once on, stay on until wider threshold
-    const fistNow = lftOn ? fd < FIST_OFF : fd < FIST_ON;
+    const fistNow = lftOn ? fd < PINCH_OFF : fd < PINCH_ON;
 
     // ── Pinch: thumb-tip (4) ↔ index-tip (8) ──
     const pd = Math.hypot(lm[4].x-lm[8].x, lm[4].y-lm[8].y);
@@ -631,11 +630,11 @@ function onResults(res) {
     const cx = (lm[0].x + lm[9].x) * 0.5;   // wrist to middle-MCP midpoint
     const cy = (lm[0].y + lm[9].y) * 0.5;
     // Gesture indicator dots stay on the gesture landmarks
-    const gcx = isLeft ? (lm[4].x+lm[17].x)/2 : (lm[4].x+lm[8].x)/2;
-    const gcy = isLeft ? (lm[4].y+lm[17].y)/2 : (lm[4].y+lm[8].y)/2;
+    const gcx = (lm[4].x+lm[8].x)/2;  // thumb+index for both hands
+    const gcy = (lm[4].y+lm[8].y)/2;
 
     if (isLeft) {
-      $('i-lh').textContent = fistNow ? 'Fist' : 'Open';
+      $('i-lh').textContent = fistNow ? 'Pinch' : 'Open';
       doLeft(fistNow, cx, cy);
       lftOn = fistNow;
     } else {
@@ -786,7 +785,7 @@ function drawSkel(lm, active, cx, cy, isLeft) {
 
   // Joints
   lm.forEach((p,i) => {
-    const hi = isLeft && active && (i===4 || i===17);
+    const hi = active && (i===4 || i===8);
     ctx.beginPath();
     ctx.arc(p.x*W, p.y*H, i===0?5:hi?4.5:2.2, 0, Math.PI*2);
     ctx.fillStyle   = hi ? '#ffffff' : NC;
