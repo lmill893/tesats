@@ -222,7 +222,7 @@ const NEON   = 0x00d4ff;
 const NC     = '#00d4ff';
 const CAM_Z  = 14;
 const DMIN   = 2,  DMAX   = 18;
-const OBJ_SIZE = 1.2;          // world-unit spacing for paint mode
+const OBJ_SIZE = 1.4;          // face-to-face spacing (matches cube side length)
 // Gesture hysteresis — need to be closer to activate than to release
 const FIST_ON  = 0.11,  FIST_OFF  = 0.16;
 const PINCH_ON = 0.042, PINCH_OFF = 0.065;
@@ -416,25 +416,90 @@ function spawnAt(pos, popIn=true) {
 }
 
 // ═══════════════════════════════════════════
-// CONNECTIONS
+// FACE-SNAPPING CONNECTIONS
 // ═══════════════════════════════════════════
-// Shared mutable BufferGeometry to avoid per-frame GC
-function addConn(a, b) {
+// Returns the half-extents of an object's AABB (accounts for scale)
+function halfExtents(o) {
+  const box = new THREE.Box3().setFromObject(o);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  return size.multiplyScalar(0.5);
+}
+
+// The 6 axis-aligned face normals
+const FACE_AXES = [
+  new THREE.Vector3( 1, 0, 0),
+  new THREE.Vector3(-1, 0, 0),
+  new THREE.Vector3( 0, 1, 0),
+  new THREE.Vector3( 0,-1, 0),
+  new THREE.Vector3( 0, 0, 1),
+  new THREE.Vector3( 0, 0,-1),
+];
+
+// Snap b so its nearest face is flush against a's nearest face.
+// a stays fixed; b is moved.
+function snapFaces(a, b) {
   if (conns.find(c=>(c.a===a&&c.b===b)||(c.a===b&&c.b===a))) return null;
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute([
+
+  const ha = halfExtents(a);
+  const hb = halfExtents(b);
+
+  // Direction from a's centre to b's centre
+  const dir = b.position.clone().sub(a.position);
+  const len = dir.length();
+  if (len < 0.001) dir.set(1, 0, 0); else dir.normalize();
+
+  // Pick the axis that best matches the a→b direction
+  let bestDot = -Infinity, bestAxis = null;
+  FACE_AXES.forEach(ax => {
+    const d = ax.dot(dir);
+    if (d > bestDot) { bestDot = d; bestAxis = ax; }
+  });
+
+  // a's face centre in that direction
+  const aFace = a.position.clone().add(
+    bestAxis.clone().multiply(ha)
+  );
+
+  // b's opposing face normal (pointing back toward a)
+  const bNorm = bestAxis.clone().negate();
+  const bFace = b.position.clone().add(
+    bNorm.clone().multiply(hb)
+  );
+
+  // Move b so its face aligns with a's face
+  const offset = aFace.clone().sub(bFace);
+  b.position.add(offset);
+  b.userData.idle = true;
+
+  // Draw a thin seam line at the shared face to show the join
+  const seamMid = aFace.clone(); // midpoint is the shared face
+  const seamGeo = new THREE.BufferGeometry();
+  seamGeo.setAttribute('position', new THREE.Float32BufferAttribute([
     a.position.x, a.position.y, a.position.z,
     b.position.x, b.position.y, b.position.z
   ], 3));
-  const ln = new THREE.Line(geo, new THREE.LineBasicMaterial({color:NEON,transparent:true,opacity:.65}));
-  scene.add(ln); conns.push({a,b,ln});
+  const seamLn = new THREE.Line(seamGeo,
+    new THREE.LineBasicMaterial({color:NEON, transparent:true, opacity:.5}));
+  scene.add(seamLn);
+
+  // Store the snap axis so we can re-snap if either object moves
+  conns.push({a, b, ln:seamLn, axis:bestAxis.clone(), ha:ha.clone(), hb:hb.clone()});
   $('i-c').textContent = conns.length;
-  return ln;
+  return seamLn;
 }
 
-// Update connection endpoints in place (no GC)
+// Keep b snapped to a's face as objects move (e.g. when dragging a chain)
 function tickConns() {
-  conns.forEach(({a,b,ln}) => {
+  conns.forEach(({a, b, ln, axis, ha, hb}) => {
+    // Re-snap b to a's face every frame
+    const aFace = a.position.clone().add(axis.clone().multiply(ha));
+    const bNorm = axis.clone().negate();
+    const bFace = b.position.clone().add(bNorm.clone().multiply(hb));
+    const offset = aFace.clone().sub(bFace);
+    b.position.add(offset);
+
+    // Update seam line
     const pos = ln.geometry.attributes.position;
     pos.setXYZ(0, a.position.x, a.position.y, a.position.z);
     pos.setXYZ(1, b.position.x, b.position.y, b.position.z);
@@ -442,14 +507,21 @@ function tickConns() {
   });
 }
 
+// Alias for old call sites (paint mode etc.)
+function addConn(a, b) { return snapFaces(a, b); }
+
 // ═══════════════════════════════════════════
 // NEAREST OBJECT
 // ═══════════════════════════════════════════
+// sx,sy are in MIRRORED screen space [0-1] (same as wx = 1-cx)
+// We mirror the projected x to match: screenX = 1 - (p.x+1)/2
 function nearest(sx, sy, thresh=0.14) {
   let best=null, bd=Infinity;
   objs.forEach(o => {
     const p = o.position.clone().project(cam);
-    const d = Math.hypot((p.x+1)/2-sx, (-p.y+1)/2-sy);
+    const px = 1 - (p.x+1)/2;   // mirror to match hand coords
+    const py =    (-p.y+1)/2;
+    const d = Math.hypot(px-sx, py-sy);
     if (d<thresh && d<bd) { bd=d; best=o; }
   });
   return best;
@@ -554,9 +626,13 @@ function onResults(res) {
     const pd = Math.hypot(lm[4].x-lm[8].x, lm[4].y-lm[8].y);
     const pinchNow = rgtOn ? pd < PINCH_OFF : pd < PINCH_ON;
 
-    // Gesture centre point
-    const cx = isLeft ? (lm[4].x+lm[17].x)/2 : (lm[4].x+lm[8].x)/2;
-    const cy = isLeft ? (lm[4].y+lm[17].y)/2 : (lm[4].y+lm[8].y)/2;
+    // Use wrist (lm[0]) as position — most stable landmark.
+    // Palm centre (avg of wrist + middle MCP) is even more stable for large hands.
+    const cx = (lm[0].x + lm[9].x) * 0.5;   // wrist to middle-MCP midpoint
+    const cy = (lm[0].y + lm[9].y) * 0.5;
+    // Gesture indicator dots stay on the gesture landmarks
+    const gcx = isLeft ? (lm[4].x+lm[17].x)/2 : (lm[4].x+lm[8].x)/2;
+    const gcy = isLeft ? (lm[4].y+lm[17].y)/2 : (lm[4].y+lm[8].y)/2;
 
     if (isLeft) {
       $('i-lh').textContent = fistNow ? 'Fist' : 'Open';
@@ -568,7 +644,7 @@ function onResults(res) {
       rgtOn = pinchNow;
     }
 
-    drawSkel(lm, isLeft ? fistNow : pinchNow, cx, cy, isLeft);
+    drawSkel(lm, isLeft ? fistNow : pinchNow, gcx, gcy, isLeft);
   });
 }
 
@@ -967,7 +1043,7 @@ initThree();
           </div>
           <div class="hrow">
             <div class="hrow-key"><span class="hk2">Pinch</span> <span style="font-size:9px;color:var(--mu);align-self:center">Connect mode</span></div>
-            <div class="hrow-desc">In <b>Connect</b> mode, pinch near two objects in sequence to draw a <b>neon connection line</b> between them. Use left fist for the first, right pinch for the second (or either order).</div>
+            <div class="hrow-desc">In <b>Connect</b> mode, pinch near two objects in sequence to <b>snap their nearest faces flush together</b>. Use left fist for the first, right pinch for the second (or either order). The objects physically move so their faces are touching.</div>
           </div>
         </div>
       </div>
