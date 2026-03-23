@@ -1,142 +1,900 @@
-#!/usr/bin/env python3
-"""
-L — Holographic Builder · Local Proxy Server
-=============================================
-This tiny server does two things:
-  1. Serves hologram_builder.html at http://localhost:5050
-  2. Proxies AI requests to Anthropic at http://localhost:5050/api
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L — Holographic Builder</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+:root{--n:#00d4ff;--glow:0 0 7px #00d4ff,0 0 18px rgba(0,212,255,.4);--bg:#f5f3ef;--tx:#1a1a1a;--mu:#999;--bd:#d8d4cc}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;color:var(--tx);overflow:hidden;height:100vh;width:100vw;background:#000}
 
-HOW TO RUN
-----------
-1. Get your Anthropic API key from https://console.anthropic.com
-2. Open a terminal in this folder and run:
+/* camera */
+#cv{position:fixed;inset:0;z-index:0}
+#wf{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);transition:opacity .35s}
+body.bg-black #wf{opacity:0}
+body.bg-camera #wf{opacity:1}
+#oc{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+#sc{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
 
-       python proxy.py YOUR_API_KEY_HERE
+/* topbar */
+#tb{position:fixed;top:0;left:0;right:0;height:52px;background:rgba(245,243,239,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 14px;gap:10px;z-index:30}
+#logo{font-family:'EB Garamond',serif;font-size:28px;font-weight:500;letter-spacing:-.02em;line-height:1;flex-shrink:0}
+#tg{display:flex;align-items:center;gap:6px;flex:1;justify-content:center}
+.tgrp{display:flex;align-items:center}
+.tlbl{font-size:9px;color:var(--mu);letter-spacing:.07em;text-transform:uppercase;padding-right:5px;white-space:nowrap}
+.btn{height:25px;padding:0 9px;border:1px solid var(--bd);background:transparent;color:var(--mu);font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:.04em;cursor:pointer;transition:all .12s;white-space:nowrap}
+.btn:hover{border-color:var(--tx);color:var(--tx)}
+.btn.on{background:var(--tx);color:var(--bg);border-color:var(--tx)}
+.btn.rf{border-radius:3px 0 0 3px;border-right:none}
+.btn.rm{border-radius:0;border-right:none}
+.btn.rl{border-radius:0 3px 3px 0}
+.btn.rs{border-radius:3px}
+.tsep{width:1px;height:20px;background:var(--bd);flex-shrink:0}
+#tr{display:flex;align-items:center;gap:12px;flex-shrink:0}
+#fps{font-size:10px;color:var(--mu);font-variant-numeric:tabular-nums;min-width:44px}
+#sysi{font-size:10px;color:var(--mu);display:flex;align-items:center;gap:5px}
+.dot{width:6px;height:6px;border-radius:50%;background:#bbb;transition:background .3s,box-shadow .3s}
+.dot.on{background:var(--n);box-shadow:var(--glow)}
 
-   Or set the environment variable first:
+/* sidebar */
+#sb{position:fixed;top:52px;left:0;bottom:0;width:66px;background:rgba(245,243,239,.92);backdrop-filter:blur(16px);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:3px;z-index:20;overflow-y:auto}
+.sg{display:flex;flex-direction:column;align-items:center;gap:3px}
+.sbtn{width:40px;height:40px;border:1px solid var(--bd);background:transparent;color:var(--mu);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:all .12s;flex-shrink:0}
+.sbtn:hover{border-color:var(--tx);color:var(--tx)}
+.sbtn.on{border-color:var(--tx);background:var(--tx);color:var(--bg)}
+.slbl{font-size:7px;letter-spacing:.06em;color:var(--mu);text-transform:uppercase;text-align:center}
+.sdiv{width:24px;height:1px;background:var(--bd);margin:5px 0}
+.xbtn{width:40px;height:40px;border:1px solid var(--bd);background:transparent;color:var(--mu);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:all .12s}
+.xbtn:hover{border-color:#c00;color:#c00}
 
-       export ANTHROPIC_API_KEY=sk-ant-...
-       python proxy.py
+/* zoom strip */
+#zs{position:fixed;left:78px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;z-index:20;pointer-events:none}
+.zlbl{font-size:7px;letter-spacing:.08em;color:var(--mu);text-transform:uppercase}
+#zt{width:2px;height:88px;background:var(--bd);border-radius:1px;position:relative}
+#zh{position:absolute;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:var(--tx);top:40px;transition:top .1s}
 
-3. Open http://localhost:5050 in your browser
-4. Click Begin, allow camera — done!
-"""
+/* info panel */
+#ip{position:fixed;top:52px;right:0;width:172px;background:rgba(245,243,239,.92);backdrop-filter:blur(16px);border-left:1px solid var(--bd);padding:12px 13px;z-index:20;pointer-events:none}
+.ir{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--bd)}
+.ir:last-child{border-bottom:none}
+.il{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--mu)}
+.iv{font-size:11px;font-weight:500;color:var(--tx);font-variant-numeric:tabular-nums}
 
-import sys, os, json, http.server, urllib.request, urllib.error
+/* bottom bar */
+#bb{position:fixed;bottom:0;left:66px;right:0;height:40px;background:rgba(245,243,239,.95);backdrop-filter:blur(16px);border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:center;gap:20px;z-index:30;pointer-events:none}
+.hint{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--mu)}
+.hk{font-size:9px;font-weight:500;color:var(--tx);border:1px solid var(--bd);padding:2px 6px;border-radius:3px}
+#gl{font-size:12px;color:var(--tx);font-style:italic;font-family:'EB Garamond',serif;min-width:160px;text-align:center;transition:opacity .2s}
 
-PORT = 5050
-API_URL = "https://api.anthropic.com/v1/messages"
-API_VERSION = "2023-06-01"
+/* paint axis indicator */
+#axis-ind{position:fixed;left:50%;top:52px;transform:translateX(-50%);margin-top:8px;font-size:10px;color:var(--n);letter-spacing:.12em;text-transform:uppercase;z-index:25;pointer-events:none;opacity:0;transition:opacity .3s;text-shadow:var(--glow)}
 
-# ── Get API key ────────────────────────────────────────────────────────
-API_KEY = None
-if len(sys.argv) > 1:
-    API_KEY = sys.argv[1].strip()
-if not API_KEY:
-    API_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-if not API_KEY:
-    print("\n⚠️  No API key found.")
-    print("Run as:  python proxy.py sk-ant-YOUR_KEY_HERE")
-    print("Or set:  export ANTHROPIC_API_KEY=sk-ant-YOUR_KEY_HERE\n")
-    API_KEY = input("Paste your Anthropic API key now: ").strip()
-    if not API_KEY:
-        print("No key provided — exiting."); sys.exit(1)
+/* AI panel */
+#aip{position:fixed;bottom:40px;left:66px;right:172px;background:rgba(245,243,239,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bd);padding:9px 14px;display:none;align-items:center;gap:9px;z-index:25}
+#aip.open{display:flex}
+#ai-key{width:190px;flex-shrink:0;height:30px;border:1px solid var(--bd);background:white;padding:0 9px;font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx);border-radius:3px;outline:none}
+#ai-key:focus{border-color:var(--tx)}
+#ai-in{flex:1;height:30px;border:1px solid var(--bd);background:white;padding:0 9px;font-family:'DM Sans',sans-serif;font-size:11px;color:var(--tx);border-radius:3px;outline:none}
+#ai-in:focus{border-color:var(--tx)}
+#ai-go{height:30px;padding:0 14px;background:var(--tx);color:var(--bg);border:none;font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:.07em;cursor:pointer;border-radius:3px;white-space:nowrap;transition:opacity .12s}
+#ai-go:hover{opacity:.75}
+#ai-go:disabled{opacity:.35;cursor:not-allowed}
+#ai-msg{font-size:10px;color:var(--mu);font-style:italic;white-space:nowrap;font-family:'EB Garamond',serif;min-width:70px}
+#ai-cl{width:26px;height:26px;border:1px solid var(--bd);background:transparent;color:var(--mu);cursor:pointer;border-radius:3px;font-size:13px;display:flex;align-items:center;justify-content:center}
+#ai-cl:hover{border-color:var(--tx);color:var(--tx)}
 
-print(f"\n✓ API key loaded ({API_KEY[:12]}...)")
+/* splash */
+#splash{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;transition:opacity .55s}
+#splash h1{font-family:'EB Garamond',serif;font-size:92px;font-weight:400;letter-spacing:-.04em;line-height:1}
+#splash p{font-size:11px;color:var(--mu);letter-spacing:.2em;text-transform:uppercase}
+#splash hr{width:1px;height:34px;border:none;background:var(--bd)}
+#sbt{margin-top:14px;padding:10px 30px;background:var(--tx);border:none;color:var(--bg);font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:opacity .2s}
+#sbt:hover{opacity:.75}
+#sbar{width:100px;height:1px;background:var(--bd);display:none;position:relative;overflow:hidden}
+#sbar.v{display:block}
+#sfill{position:absolute;top:0;left:0;height:100%;background:var(--tx);width:0;transition:width 1.3s ease}
+#stxt{font-size:9px;color:var(--mu);letter-spacing:.1em;text-transform:uppercase}
+</style>
+</head>
+<body class="bg-camera">
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+<div id="cv">
+  <video id="wf" autoplay muted playsinline></video>
+  <canvas id="oc"></canvas>
+  <canvas id="sc"></canvas>
+</div>
 
-class Handler(http.server.BaseHTTPRequestHandler):
+<div id="splash">
+  <h1>L</h1><hr>
+  <p>Holographic Object Builder</p>
+  <button id="sbt" onclick="startCam()">Begin</button>
+  <div id="sbar"><div id="sfill"></div></div>
+  <div id="stxt" style="display:none"></div>
+</div>
 
-    def log_message(self, fmt, *args):
-        # Suppress noisy access logs; only show errors
-        if str(args[1]) not in ('200', '304'):
-            print(f"  [{args[1]}] {args[0]}")
+<div id="tb">
+  <div id="logo">L</div>
+  <div id="tg">
+    <div class="tgrp">
+      <span class="tlbl">Bg</span>
+      <button class="btn rf on" id="b-cam" onclick="setBg('camera')">Camera</button>
+      <button class="btn rl"    id="b-blk" onclick="setBg('black')">Black</button>
+    </div>
+    <div class="tsep"></div>
+    <div class="tgrp">
+      <span class="tlbl">Fill</span>
+      <button class="btn rf on" id="b-hol" onclick="setFill('hollow')">Hollow</button>
+      <button class="btn rl"    id="b-sol" onclick="setFill('solid')">Solid</button>
+    </div>
+    <div class="tsep"></div>
+    <div class="tgrp">
+      <span class="tlbl">Mode</span>
+      <button class="btn rf on" id="b-place"   onclick="setMode('place')">Place</button>
+      <button class="btn rm"    id="b-paint"   onclick="setMode('paint')">Paint</button>
+      <button class="btn rl"    id="b-connect" onclick="setMode('connect')">Connect</button>
+    </div>
+    <div class="tsep"></div>
+    <button class="btn rs" onclick="toggleAI()">✦ AI Build</button>
+  </div>
+  <div id="tr">
+    <div id="fps">-- fps</div>
+    <div id="sysi"><div class="dot" id="dot"></div><span id="stx">Standby</span></div>
+  </div>
+</div>
 
-    def send_cors(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+<div id="sb">
+  <div class="sg"><button class="sbtn on" id="t-cube"       onclick="setShape('cube')">⬡</button><div class="slbl">Cube</div></div>
+  <div class="sg"><button class="sbtn"    id="t-sphere"     onclick="setShape('sphere')">○</button><div class="slbl">Sphere</div></div>
+  <div class="sg"><button class="sbtn"    id="t-pyramid"    onclick="setShape('pyramid')">△</button><div class="slbl">Pyramid</div></div>
+  <div class="sg"><button class="sbtn"    id="t-torus"      onclick="setShape('torus')">◎</button><div class="slbl">Torus</div></div>
+  <div class="sg"><button class="sbtn"    id="t-octahedron" onclick="setShape('octahedron')">◇</button><div class="slbl">Octa</div></div>
+  <div class="sg"><button class="sbtn"    id="t-cylinder"   onclick="setShape('cylinder')">⬭</button><div class="slbl">Cyl.</div></div>
+  <div class="sdiv"></div>
+  <div class="sg"><button class="xbtn" onclick="clearAll()">✕</button><div class="slbl">Clear</div></div>
+</div>
 
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_cors()
-        self.end_headers()
+<div id="zs">
+  <div class="zlbl">Near</div>
+  <div id="zt"><div id="zh"></div></div>
+  <div class="zlbl">Far</div>
+</div>
 
-    def do_GET(self):
-        path = self.path.split("?")[0]
-        if path in ("/", "/index.html"):
-            path = "/hologram_builder.html"
-        file_path = os.path.join(SCRIPT_DIR, path.lstrip("/"))
+<div id="ip">
+  <div class="ir"><span class="il">Objects</span>    <span class="iv" id="i-n">0</span></div>
+  <div class="ir"><span class="il">Selected</span>   <span class="iv" id="i-s">—</span></div>
+  <div class="ir"><span class="il">Mode</span>       <span class="iv" id="i-m">Place</span></div>
+  <div class="ir"><span class="il">Z depth</span>    <span class="iv" id="i-d">8.0</span></div>
+  <div class="ir"><span class="il">Connections</span><span class="iv" id="i-c">0</span></div>
+  <div class="ir"><span class="il">L. hand</span>    <span class="iv" id="i-lh">—</span></div>
+  <div class="ir"><span class="il">R. hand</span>    <span class="iv" id="i-rh">—</span></div>
+</div>
 
-        if not os.path.isfile(file_path):
-            self.send_error(404, f"Not found: {path}"); return
+<div id="axis-ind" id="axind"></div>
 
-        ext = os.path.splitext(file_path)[1]
-        mime = {"html":"text/html","js":"application/javascript","css":"text/css",
-                "png":"image/png","ico":"image/x-icon"}.get(ext.lstrip("."), "text/plain")
+<div id="aip">
+  <input id="ai-key" type="password" placeholder="sk-ant-… API key" />
+  <input id="ai-in"  placeholder="Describe a structure — e.g. 'a helix of spheres'" />
+  <span  id="ai-msg"></span>
+  <button id="ai-go" onclick="runAI()">Generate</button>
+  <button id="ai-cl" onclick="toggleAI()">✕</button>
+</div>
 
-        with open(file_path, "rb") as f:
-            data = f.read()
-        self.send_response(200)
-        self.send_header("Content-Type", mime)
-        self.send_header("Content-Length", len(data))
-        self.send_cors()
-        self.end_headers()
-        self.wfile.write(data)
+<div id="bb">
+  <div class="hint"><span class="hk">L. fist</span> Place · Move</div>
+  <div class="hint"><span class="hk">Hold fist</span> Paint line</div>
+  <div id="gl">Awaiting input</div>
+  <div class="hint"><span class="hk">R. pinch</span> Rotate · Connect</div>
+  <div class="hint"><span class="hk">Scroll</span> Z depth</div>
+</div>
 
-    def do_POST(self):
-        if self.path != "/api":
-            self.send_error(404); return
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script>
+'use strict';
+// ═══════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════
+const NEON   = 0x00d4ff;
+const NC     = '#00d4ff';
+const CAM_Z  = 14;
+const DMIN   = 2,  DMAX   = 18;
+const OBJ_SIZE = 1.2;          // world-unit spacing for paint mode
+// Gesture hysteresis — need to be closer to activate than to release
+const FIST_ON  = 0.11,  FIST_OFF  = 0.16;
+const PINCH_ON = 0.042, PINCH_OFF = 0.065;
 
-        length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(length)
+// ═══════════════════════════════════════════
+// GLOBALS
+// ═══════════════════════════════════════════
+let R, scene, cam;              // three.js renderer, scene, camera
+let mpH, mpC;                   // mediapipe
+const vid = document.getElementById('wf');
+const cvs = document.getElementById('oc');
+const ctx = cvs.getContext('2d');
+const c3  = document.getElementById('sc');
 
-        req = urllib.request.Request(
-            API_URL,
-            data=body,
-            headers={
-                "Content-Type": "application/json",
-                "x-api-key": API_KEY,
-                "anthropic-version": API_VERSION,
-            },
-            method="POST"
-        )
+// state
+let objs  = [];                 // THREE.Group[]
+let conns = [];                 // {a,b,ln}[]
+let selObj= null, connFirst=null;
+let curShape='cube', fillM='hollow', buildM='place';
+let dTarget=8, dCur=8, lastT=0;
 
-        try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                result = resp.read()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_cors()
-            self.end_headers()
-            self.wfile.write(result)
-            print(f"  [AI] Request OK ({len(result)} bytes)")
+// gesture state — with hysteresis
+let lftOn=false, rgtOn=false;
+let prevR=null;
+let drag=false, dragO=null, spawnCD=0;
 
-        except urllib.error.HTTPError as e:
-            err_body = e.read()
-            print(f"  [AI] Anthropic error {e.code}: {err_body[:200]}")
-            self.send_response(e.code)
-            self.send_header("Content-Type", "application/json")
-            self.send_cors()
-            self.end_headers()
-            self.wfile.write(err_body)
+// paint state
+let painting=false;
+let paintOrigin=null;    // THREE.Vector3 — start of current stroke
+let paintDir=null;       // THREE.Vector3 — locked axis direction (unit)
+let paintAxisLocked=false;
+let paintLastObj=null;   // last placed object in stroke
+let paintCount=0;        // blocks placed in current stroke
 
-        except Exception as e:
-            print(f"  [AI] Proxy error: {e}")
-            self.send_response(500)
-            self.send_header("Content-Type", "application/json")
-            self.send_cors()
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": str(e)}).encode())
+// geo cache — avoid re-creating identical geometries
+const geoCache = {};
 
+// ═══════════════════════════════════════════
+// TINY DOM HELPER
+// ═══════════════════════════════════════════
+const $ = id => document.getElementById(id);
+let _gestTid;
+function msg(t, persist=false) {
+  $('gl').textContent = t;
+  clearTimeout(_gestTid);
+  if (!persist) _gestTid = setTimeout(() => $('gl').textContent = 'Awaiting input', 3200);
+}
 
-if __name__ == "__main__":
-    server = http.server.HTTPServer(("localhost", PORT), Handler)
-    print(f"\n🌐  Open this in your browser → http://localhost:{PORT}")
-    print(f"📂  Serving from: {SCRIPT_DIR}")
-    print(f"    Press Ctrl+C to stop.\n")
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\nStopped.")
+// ═══════════════════════════════════════════
+// UI CONTROLS
+// ═══════════════════════════════════════════
+function setBg(m) {
+  document.body.className = 'bg-'+m;
+  $('b-cam').classList.toggle('on', m==='camera');
+  $('b-blk').classList.toggle('on', m==='black');
+}
+function setFill(m) {
+  fillM = m;
+  $('b-hol').classList.toggle('on', m==='hollow');
+  $('b-sol').classList.toggle('on', m==='solid');
+  objs.forEach(o => rebuildViz(o, o.userData.shape, m));
+}
+function setMode(m) {
+  buildM = m;
+  ['place','paint','connect'].forEach(x => $('b-'+x).classList.toggle('on', x===m));
+  connFirst=null; selObj=null; $('i-s').textContent='—';
+  $('i-m').textContent = m[0].toUpperCase()+m.slice(1);
+  const hints = {
+    place:   'Fist to place · hold & drag to move',
+    paint:   'Hold fist — move to paint a straight line',
+    connect: 'Fist near obj 1 · then pinch near obj 2'
+  };
+  msg(hints[m], true);
+}
+function setShape(s) {
+  curShape = s;
+  document.querySelectorAll('.sbtn').forEach(b => b.classList.remove('on'));
+  $('t-'+s).classList.add('on');
+}
+function clearAll() {
+  objs.forEach(o => scene.remove(o));
+  conns.forEach(c => scene.remove(c.ln));
+  objs=[]; conns=[]; selObj=null; connFirst=null; drag=false; dragO=null;
+  painting=false; paintOrigin=null; paintDir=null; paintAxisLocked=false; paintLastObj=null;
+  $('i-n').textContent='0'; $('i-c').textContent='0'; $('i-s').textContent='—';
+  setAxisDisplay(null);
+}
+function toggleAI() {
+  const p=$('aip'); p.classList.toggle('open');
+  if (p.classList.contains('open')) {
+    $('ai-msg').textContent='';
+    const k=localStorage.getItem('l_k'); if(k) $('ai-key').value=k;
+    $('ai-in').focus();
+  }
+}
+function setAxisDisplay(axis) {
+  const el=$('axis-ind');
+  if (!axis) { el.style.opacity='0'; return; }
+  el.textContent = axis==='x'?'→ Horizontal':'↑ Vertical';
+  el.style.opacity='1';
+}
+
+// ═══════════════════════════════════════════
+// THREE.JS INIT
+// ═══════════════════════════════════════════
+function initThree() {
+  scene = new THREE.Scene();
+  cam   = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 200);
+  cam.position.set(0, 0, CAM_Z);
+
+  R = new THREE.WebGLRenderer({ canvas:c3, antialias:true, alpha:true });
+  R.setSize(innerWidth, innerHeight);
+  R.setClearColor(0, 0);
+  R.setPixelRatio(Math.min(devicePixelRatio, 2));
+
+  // Correct way to position Three.js lights
+  const pl1 = new THREE.PointLight(NEON, 2, 100);
+  pl1.position.set(5, 5, 8); scene.add(pl1);
+  const pl2 = new THREE.PointLight(0xffffff, 0.4, 60);
+  pl2.position.set(-4, -3, 3); scene.add(pl2);
+  scene.add(new THREE.AmbientLight(0x001a22, 1.2));
+
+  addEventListener('resize', () => {
+    cam.aspect = innerWidth/innerHeight;
+    cam.updateProjectionMatrix();
+    R.setSize(innerWidth, innerHeight);
+    cvs.width=innerWidth; cvs.height=innerHeight;
+  });
+  requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════
+// GEOMETRY (cached)
+// ═══════════════════════════════════════════
+function getGeo(s) {
+  if (geoCache[s]) return geoCache[s];
+  const g = s==='cube'       ? new THREE.BoxGeometry(1.4,1.4,1.4,2,2,2)
+          : s==='sphere'     ? new THREE.SphereGeometry(0.85,14,10)
+          : s==='pyramid'    ? new THREE.ConeGeometry(0.9,1.7,5)
+          : s==='torus'      ? new THREE.TorusGeometry(0.72,0.2,10,26)
+          : s==='octahedron' ? new THREE.OctahedronGeometry(0.95)
+          : s==='cylinder'   ? new THREE.CylinderGeometry(0.55,0.55,1.7,10)
+          : new THREE.BoxGeometry(1.4,1.4,1.4,2,2,2);
+  geoCache[s] = g;
+  return g;
+}
+
+function rebuildViz(group, s, f) {
+  while (group.children.length) group.remove(group.children[0]);
+  const g = getGeo(s);
+  if (f === 'solid') {
+    const m = new THREE.MeshPhongMaterial({color:NEON,emissive:0x001a22,transparent:true,opacity:.88,shininess:90});
+    group.add(new THREE.Mesh(g, m));
+    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(g),
+      new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.28})));
+  } else {
+    group.add(new THREE.Mesh(g,
+      new THREE.MeshBasicMaterial({color:NEON,wireframe:true,transparent:true,opacity:.75})));
+    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(g),
+      new THREE.LineBasicMaterial({color:NEON,transparent:true,opacity:1})));
+  }
+}
+
+function makeObj(s, f) {
+  const grp = new THREE.Group();
+  rebuildViz(grp, s, f||fillM);
+  grp.userData = { shape:s, fill:f||fillM, phase:Math.random()*Math.PI*2, rv:{x:.0015,y:.003}, idle:true };
+  return grp;
+}
+
+// ═══════════════════════════════════════════
+// SPAWN
+// ═══════════════════════════════════════════
+// Convert normalised screen [0-1] to world pos at given depth
+function s2w(sx, sy, depth) {
+  const fh = Math.tan(cam.fov * Math.PI / 360) * depth;
+  return new THREE.Vector3((sx-.5)*2*fh*cam.aspect, -(sy-.5)*2*fh, CAM_Z-depth);
+}
+
+function spawnAt(pos, popIn=true) {
+  const o = makeObj(curShape, fillM);
+  o.position.copy(pos);
+  scene.add(o); objs.push(o);
+  $('i-n').textContent = objs.length;
+  if (popIn) {
+    o.scale.setScalar(0.01);
+    const t0=performance.now();
+    (function grow(t){ const p=Math.min((t-t0)/220,1); o.scale.setScalar(1-Math.pow(1-p,3)); if(p<1) requestAnimationFrame(grow); })(t0);
+  }
+  return o;
+}
+
+// ═══════════════════════════════════════════
+// CONNECTIONS
+// ═══════════════════════════════════════════
+// Shared mutable BufferGeometry to avoid per-frame GC
+function addConn(a, b) {
+  if (conns.find(c=>(c.a===a&&c.b===b)||(c.a===b&&c.b===a))) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute([
+    a.position.x, a.position.y, a.position.z,
+    b.position.x, b.position.y, b.position.z
+  ], 3));
+  const ln = new THREE.Line(geo, new THREE.LineBasicMaterial({color:NEON,transparent:true,opacity:.65}));
+  scene.add(ln); conns.push({a,b,ln});
+  $('i-c').textContent = conns.length;
+  return ln;
+}
+
+// Update connection endpoints in place (no GC)
+function tickConns() {
+  conns.forEach(({a,b,ln}) => {
+    const pos = ln.geometry.attributes.position;
+    pos.setXYZ(0, a.position.x, a.position.y, a.position.z);
+    pos.setXYZ(1, b.position.x, b.position.y, b.position.z);
+    pos.needsUpdate = true;
+  });
+}
+
+// ═══════════════════════════════════════════
+// NEAREST OBJECT
+// ═══════════════════════════════════════════
+function nearest(sx, sy, thresh=0.14) {
+  let best=null, bd=Infinity;
+  objs.forEach(o => {
+    const p = o.position.clone().project(cam);
+    const d = Math.hypot((p.x+1)/2-sx, (-p.y+1)/2-sy);
+    if (d<thresh && d<bd) { bd=d; best=o; }
+  });
+  return best;
+}
+
+// ═══════════════════════════════════════════
+// PAINT LINE LOGIC
+// ═══════════════════════════════════════════
+// When paint starts:
+//   - Record origin in world space.
+//   - For the first 4 frames of movement, determine dominant axis (X or Y).
+//   - Lock axis and snap all subsequent blocks along it, evenly spaced OBJ_SIZE apart.
+//   - Each block is auto-connected to the previous.
+
+function paintStep(wx, wy) {
+  const curPos = s2w(wx, wy, dCur);
+
+  if (!paintOrigin) {
+    // First frame of stroke
+    paintOrigin = curPos.clone();
+    paintDir    = null;
+    paintAxisLocked = false;
+    paintCount  = 0;
+    const o = spawnAt(paintOrigin.clone());
+    paintLastObj = o; selObj = o;
+    paintCount = 1;
+    setAxisDisplay(null);
+    msg('Detecting axis…', true);
+    return;
+  }
+
+  const delta = curPos.clone().sub(paintOrigin);
+
+  // Axis detection phase (until moved enough to determine direction)
+  if (!paintAxisLocked) {
+    const moved = Math.max(Math.abs(delta.x), Math.abs(delta.y));
+    if (moved > 0.4) {
+      // Lock to dominant axis
+      paintDir = Math.abs(delta.x) >= Math.abs(delta.y)
+        ? new THREE.Vector3(1, 0, 0)
+        : new THREE.Vector3(0, 1, 0);
+      paintAxisLocked = true;
+      setAxisDisplay(paintDir.x > 0.5 ? 'x' : 'y');
+      msg('Painting…', true);
+    }
+    return; // wait for axis lock before placing more blocks
+  }
+
+  // Project current hand pos onto the locked axis from origin
+  const proj = delta.dot(paintDir); // signed distance along axis from origin
+  const targetCount = Math.round(Math.abs(proj) / OBJ_SIZE);
+  const sign = proj >= 0 ? 1 : -1;
+
+  // Place blocks up to the current projected count
+  if (targetCount >= paintCount) {
+    for (let i = paintCount; i <= targetCount; i++) {
+      const pos = paintOrigin.clone().add(paintDir.clone().multiplyScalar(sign * i * OBJ_SIZE));
+      const o = spawnAt(pos, false); // no pop-in for paint — instant
+      o.scale.setScalar(1);
+      if (paintLastObj) addConn(paintLastObj, o);
+      paintLastObj = o; selObj = o;
+      paintCount = i;
+    }
+    paintCount = targetCount + 1;
+  }
+}
+
+function endPaint() {
+  painting = false;
+  paintOrigin = null; paintDir = null; paintAxisLocked = false;
+  paintLastObj = null; paintCount = 0;
+  setAxisDisplay(null);
+  msg('Stroke complete');
+}
+
+// ═══════════════════════════════════════════
+// HAND TRACKING RESULTS
+// ═══════════════════════════════════════════
+function onResults(res) {
+  // Reset canvas each frame (reassigning width clears it too)
+  cvs.width = innerWidth; cvs.height = innerHeight;
+
+  if (!res.multiHandLandmarks?.length) {
+    $('i-lh').textContent='—'; $('i-rh').textContent='—';
+    if (drag) { drag=false; dragO=null; }
+    if (painting) endPaint();
+    // Decay gesture flags
+    lftOn=false; rgtOn=false;
+    return;
+  }
+
+  res.multiHandLandmarks.forEach((lm,i) => {
+    // MediaPipe mirrors: label 'Right' = user's left hand
+    const isLeft = res.multiHandedness[i].label === 'Right';
+
+    // ── Fist: thumb-tip (4) ↔ pinky-base (17) distance ──
+    const fd = Math.hypot(lm[4].x-lm[17].x, lm[4].y-lm[17].y);
+    // Hysteresis: once on, stay on until wider threshold
+    const fistNow = lftOn ? fd < FIST_OFF : fd < FIST_ON;
+
+    // ── Pinch: thumb-tip (4) ↔ index-tip (8) ──
+    const pd = Math.hypot(lm[4].x-lm[8].x, lm[4].y-lm[8].y);
+    const pinchNow = rgtOn ? pd < PINCH_OFF : pd < PINCH_ON;
+
+    // Gesture centre point
+    const cx = isLeft ? (lm[4].x+lm[17].x)/2 : (lm[4].x+lm[8].x)/2;
+    const cy = isLeft ? (lm[4].y+lm[17].y)/2 : (lm[4].y+lm[8].y)/2;
+
+    if (isLeft) {
+      $('i-lh').textContent = fistNow ? 'Fist' : 'Open';
+      doLeft(fistNow, cx, cy);
+      lftOn = fistNow;
+    } else {
+      $('i-rh').textContent = pinchNow ? 'Pinch' : 'Open';
+      doRight(pinchNow, cx, cy);
+      rgtOn = pinchNow;
+    }
+
+    drawSkel(lm, isLeft ? fistNow : pinchNow, cx, cy, isLeft);
+  });
+}
+
+// ═══════════════════════════════════════════
+// LEFT HAND
+// ═══════════════════════════════════════════
+function doLeft(fist, cx, cy) {
+  const wx = 1-cx, wy = cy; // un-mirror x (video is CSS scaleX(-1))
+
+  // ── PAINT MODE ──────────────────────────
+  if (buildM === 'paint') {
+    if (fist) {
+      if (!painting) { painting=true; }
+      paintStep(wx, wy);
+    } else {
+      if (painting) endPaint();
+    }
+    return;
+  }
+
+  // ── CONNECT MODE ────────────────────────
+  if (buildM === 'connect') {
+    if (fist && !lftOn) { // rising edge only
+      const n = nearest(wx, wy);
+      if (n) {
+        if (!connFirst) {
+          connFirst=n; selObj=n;
+          $('i-s').textContent=n.userData.shape;
+          msg('First selected — pinch second', true);
+        } else if (n!==connFirst) {
+          addConn(connFirst, n);
+          msg('Connected!');
+          connFirst=null; selObj=null; $('i-s').textContent='—';
+        }
+      }
+    }
+    return;
+  }
+
+  // ── PLACE MODE ──────────────────────────
+  if (fist && !lftOn) {
+    // Rising edge — start drag or spawn
+    const n = nearest(wx, wy);
+    if (n) {
+      drag=true; dragO=n; selObj=n;
+      dragO.userData.idle = false;
+      $('i-s').textContent=n.userData.shape; $('i-m').textContent='Move';
+      msg('Moving…', true);
+    } else if (spawnCD <= 0) {
+      const o = spawnAt(s2w(wx, wy, dCur)); selObj=o;
+      $('i-s').textContent=o.userData.shape; $('i-m').textContent='Place';
+      msg('Object placed');
+      spawnCD = 18;
+    }
+  } else if (fist && lftOn && drag && dragO) {
+    // Ongoing drag
+    const depth = Math.max(0.5, CAM_Z - dragO.position.z);
+    const wp = s2w(wx, wy, depth);
+    dragO.position.x += (wp.x - dragO.position.x) * 0.28;
+    dragO.position.y += (wp.y - dragO.position.y) * 0.28;
+  } else if (!fist && lftOn) {
+    // Falling edge — release
+    if (drag && dragO) { dragO.userData.idle=true; }
+    drag=false; dragO=null;
+    $('i-m').textContent='Place';
+  }
+}
+
+// ═══════════════════════════════════════════
+// RIGHT HAND
+// ═══════════════════════════════════════════
+function doRight(pinch, cx, cy) {
+  const wx = 1-cx, wy = cy;
+
+  // ── CONNECT MODE ────────────────────────
+  if (buildM === 'connect') {
+    if (pinch && !rgtOn) {
+      const n = nearest(wx, wy);
+      if (n && connFirst && n!==connFirst) {
+        addConn(connFirst, n); msg('Connected!');
+        connFirst=null; selObj=null; $('i-s').textContent='—';
+      } else if (n && !connFirst) {
+        connFirst=n; selObj=n; $('i-s').textContent=n.userData.shape;
+        msg('First selected — fist second', true);
+      }
+    }
+    return;
+  }
+
+  // ── ROTATE ──────────────────────────────
+  if (pinch && !rgtOn) {
+    prevR = {x:cx, y:cy};
+    const n = nearest(wx,wy) || (objs.length ? objs[objs.length-1] : null);
+    if (n) {
+      selObj=n; n.userData.idle=false;
+      $('i-s').textContent=n.userData.shape; $('i-m').textContent='Rotate';
+      msg('Rotating…', true);
+    }
+  } else if (pinch && rgtOn && prevR && selObj) {
+    const dx=(cx-prevR.x)*9, dy=(cy-prevR.y)*9;
+    selObj.rotation.y+=dx; selObj.rotation.x+=dy;
+    selObj.userData.rv.y=dx*.35; selObj.userData.rv.x=dy*.35;
+    prevR={x:cx,y:cy};
+  } else if (!pinch && rgtOn) {
+    if (selObj) selObj.userData.idle=true;
+    prevR=null; $('i-m').textContent='Place';
+  }
+}
+
+// ═══════════════════════════════════════════
+// SKELETON DRAW
+// ═══════════════════════════════════════════
+const SK = [
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [0,9],[9,10],[10,11],[11,12],
+  [0,13],[13,14],[14,15],[15,16],
+  [0,17],[17,18],[18,19],[19,20],
+  [5,9],[9,13],[13,17]
+];
+
+function drawSkel(lm, active, cx, cy, isLeft) {
+  const W=cvs.width, H=cvs.height;
+  ctx.save();
+  ctx.translate(W,0); ctx.scale(-1,1); // mirror to match CSS-flipped video
+
+  // Draw all bones in one path batch for performance
+  ctx.beginPath();
+  SK.forEach(([a,b]) => {
+    ctx.moveTo(lm[a].x*W, lm[a].y*H);
+    ctx.lineTo(lm[b].x*W, lm[b].y*H);
+  });
+  ctx.strokeStyle = NC;
+  ctx.lineWidth   = active ? 1.8 : 1.4;
+  ctx.globalAlpha = active ? 1   : 0.68;
+  ctx.shadowColor = NC;
+  ctx.shadowBlur  = active ? 14  : 4;
+  ctx.stroke();
+
+  // Joints
+  lm.forEach((p,i) => {
+    const hi = isLeft && active && (i===4 || i===17);
+    ctx.beginPath();
+    ctx.arc(p.x*W, p.y*H, i===0?5:hi?4.5:2.2, 0, Math.PI*2);
+    ctx.fillStyle   = hi ? '#ffffff' : NC;
+    ctx.shadowBlur  = hi ? 20 : 6;
+    ctx.shadowColor = hi ? '#ffffff' : NC;
+    ctx.globalAlpha = 1;
+    ctx.fill();
+  });
+
+  // Active gesture ring
+  if (active) {
+    ctx.beginPath();
+    ctx.arc(cx*W, cy*H, 19, 0, Math.PI*2);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth   = 1.5;
+    ctx.globalAlpha = 0.72;
+    ctx.shadowBlur  = 22;
+    ctx.shadowColor = '#ffffff';
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════
+// SCROLL / TOUCH ZOOM (Z depth plane)
+// ═══════════════════════════════════════════
+addEventListener('wheel', e => {
+  e.preventDefault();
+  const d = e.deltaY * (e.deltaMode===1 ? 28 : 1);
+  dTarget = Math.max(DMIN, Math.min(DMAX, dTarget + d*0.013));
+  if (selObj) selObj.position.z = CAM_Z - dTarget;
+  updDepth();
+}, {passive:false});
+
+let lastTD = null;
+addEventListener('touchmove', e => {
+  if (e.touches.length !== 2) return;
+  const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
+                       e.touches[0].clientY-e.touches[1].clientY);
+  if (lastTD !== null) {
+    dTarget = Math.max(DMIN, Math.min(DMAX, dTarget+(lastTD-d)*0.045));
+    if (selObj) selObj.position.z = CAM_Z - dTarget;
+    updDepth();
+  }
+  lastTD = d;
+}, {passive:true});
+addEventListener('touchend', () => { lastTD=null; });
+
+function updDepth() {
+  $('i-d').textContent = dTarget.toFixed(1);
+  $('zh').style.top    = ((dTarget-DMIN)/(DMAX-DMIN)*78)+'px';
+}
+
+// ═══════════════════════════════════════════
+// AI BUILD
+// ═══════════════════════════════════════════
+async function runAI() {
+  const inp=$('ai-in').value.trim(); if(!inp) return;
+  const btn=$('ai-go'), smsg=$('ai-msg');
+  btn.disabled=true; smsg.textContent='Generating…';
+  const SYS=`Output ONLY a raw JSON array, no markdown, no explanation.
+Each element: {"shape":"cube"|"sphere"|"pyramid"|"torus"|"octahedron"|"cylinder","x":number,"y":number,"z":number,"scale":number,"fill":"hollow"|"solid","rx":number,"ry":number,"rz":number}
+x:-4 to 4, y:-3 to 3, z:2 to 12, scale:0.4-2.5, rx/ry/rz radians.
+Optional top-level "connections":[[i,j],...]. Max 25 objects.`;
+  try {
+    const k=$('ai-key').value.trim();
+    if(!k){smsg.textContent='✗ Paste API key';btn.disabled=false;return;}
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,system:SYS,messages:[{role:'user',content:inp}]})
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    const raw=(data.content?.[0]?.text||'').replace(/```[\s\S]*?```/g,'').trim();
+    const m=raw.match(/\[[\s\S]*\]/); if(!m) throw new Error('No JSON array');
+    const items=JSON.parse(m[0]);
+    clearAll();
+    items.forEach((it,idx)=>{
+      const o=makeObj(it.shape||'cube',it.fill||fillM);
+      o.position.set(it.x||0,it.y||0,CAM_Z-(it.z||7));
+      o.rotation.set(it.rx||0,it.ry||0,it.rz||0);
+      const sc=it.scale||1; o.scale.setScalar(0.01);
+      scene.add(o); objs.push(o);
+      const t0=performance.now()+idx*50;
+      (function g(t){if(t<t0){requestAnimationFrame(g);return;}const p=Math.min((t-t0)/260,1);o.scale.setScalar(sc*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(g);})(performance.now());
+    });
+    $('i-n').textContent=objs.length;
+    const cm=raw.match(/"connections"\s*:\s*(\[\s*\[[\s\S]*?\]\s*\])/);
+    if(cm){try{const cc=JSON.parse(cm[1]);setTimeout(()=>{cc.forEach(([a,b])=>{if(objs[a]&&objs[b])addConn(objs[a],objs[b]);});},items.length*50+300);}catch(e){}}
+    localStorage.setItem('l_k',k);
+    smsg.textContent='✓ Built '+objs.length+' objects';
+    setTimeout(()=>smsg.textContent='',2200);
+    $('aip').classList.remove('open'); $('ai-in').value='';
+  } catch(e){ smsg.textContent='✗ '+e.message.slice(0,45); console.error(e); }
+  btn.disabled=false;
+}
+$('ai-in').addEventListener('keydown',e=>{if(e.key==='Enter')runAI();});
+
+// ═══════════════════════════════════════════
+// MAIN RENDER LOOP
+// ═══════════════════════════════════════════
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = now - lastT; lastT = now;
+
+  // FPS counter (update every 500ms)
+  if (Math.floor(now/500) !== Math.floor((now-dt)/500))
+    $('fps').textContent = Math.round(1000/(dt||16))+' fps';
+
+  if (spawnCD > 0) spawnCD--;
+  dCur += (dTarget-dCur) * 0.10;
+  tickConns();
+
+  objs.forEach(o => {
+    const isSelected = o===selObj || o===connFirst;
+    const isDragObj  = o===dragO;
+
+    // Idle spin (only when not selected/dragged)
+    if (o.userData.idle && !isDragObj) {
+      o.rotation.y += o.userData.rv.y;
+      o.rotation.x += o.userData.rv.x;
+      o.userData.rv.y *= 0.988;
+      o.userData.rv.x *= 0.988;
+    }
+
+    // Gentle float (only idle objects, tiny amplitude)
+    if (o.userData.idle && !isDragObj) {
+      o.position.y += Math.sin(now*0.0006 + o.userData.phase) * 0.0008;
+    }
+
+    // Opacity pulse (hollow wireframe only)
+    if (o.userData.fill !== 'solid' && o.children[0]?.material) {
+      const p = (Math.sin(now*0.0018 + o.userData.phase)+1)*0.5;
+      o.children[0].material.opacity = 0.42 + p*0.48;
+    }
+
+    // Selection colour pulse
+    o.children.forEach(c => {
+      if (!c.material?.color) return;
+      if (isSelected) {
+        const v = 0.80 + (Math.sin(now*0.005)+1)*0.10;
+        c.material.color.setRGB(0, v*0.80, v);
+      } else {
+        c.material.color.setHex(NEON);
+      }
+    });
+  });
+
+  // Connection line opacity pulse
+  conns.forEach(({ln}, i) => {
+    ln.material.opacity = 0.38 + Math.sin(now*0.0025 + i)*0.22;
+  });
+
+  R.render(scene, cam);
+}
+
+// ═══════════════════════════════════════════
+// MEDIAPIPE / CAMERA INIT
+// ═══════════════════════════════════════════
+function startCam() {
+  $('sbt').style.display='none';
+  $('sbar').classList.add('v');
+  $('sfill').style.width='22%';
+  const lt=$('stxt'); lt.style.display='block'; lt.textContent='Requesting camera…';
+
+  mpH = new Hands({locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+  mpH.setOptions({maxNumHands:2, modelComplexity:1, minDetectionConfidence:.70, minTrackingConfidence:.62});
+  mpH.onResults(onResults);
+
+  navigator.mediaDevices.getUserMedia({video:{width:1280,height:720,facingMode:'user'}})
+    .then(stream => {
+      vid.srcObject = stream;
+      vid.onloadedmetadata = () => {
+        vid.play();
+        $('sfill').style.width='65%';
+        lt.textContent='Loading hand tracking…';
+        mpC = new Camera(vid, {
+          onFrame: async () => { await mpH.send({image:vid}); },
+          width:1280, height:720
+        });
+        mpC.start();
+        $('sfill').style.width='100%';
+        $('dot').classList.add('on');
+        $('stx').textContent='Active';
+        setTimeout(() => {
+          const s=$('splash'); s.style.opacity='0';
+          setTimeout(()=>s.style.display='none', 550);
+        }, 650);
+      };
+    })
+    .catch(err => {
+      lt.textContent='Camera denied — '+err.message.slice(0,28);
+      $('sbt').style.display='block';
+    });
+}
+
+// ═══════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════
+cvs.width  = innerWidth;
+cvs.height = innerHeight;
+updDepth();
+initThree();
+</script>
+</body>
+</html>
