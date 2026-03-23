@@ -96,6 +96,26 @@ body.bg-camera #wf{opacity:1}
 #sbar.v{display:block}
 #sfill{position:absolute;top:0;left:0;height:100%;background:var(--tx);width:0;transition:width 1.3s ease}
 #stxt{font-size:9px;color:var(--mu);letter-spacing:.1em;text-transform:uppercase}
+
+/* ── HELP OVERLAY ── */
+#help-overlay{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(6px)}
+#help-overlay.open{display:flex}
+#help-box{width:620px;max-width:calc(100vw - 40px);max-height:calc(100vh - 80px);background:var(--bg);border:1px solid var(--bd);border-radius:6px;overflow-y:auto;display:flex;flex-direction:column}
+#help-head{display:flex;align-items:baseline;justify-content:space-between;padding:22px 26px 0;border-bottom:1px solid var(--bd);padding-bottom:16px}
+#help-head h2{font-family:"EB Garamond",serif;font-size:26px;font-weight:400;letter-spacing:-.01em}
+#help-head p{font-size:10px;color:var(--mu);letter-spacing:.08em;text-transform:uppercase;margin-top:3px}
+#help-close{width:28px;height:28px;border:1px solid var(--bd);background:transparent;color:var(--mu);cursor:pointer;border-radius:3px;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s}
+#help-close:hover{border-color:var(--tx);color:var(--tx)}
+#help-body{padding:20px 26px;display:flex;flex-direction:column;gap:20px}
+.hs{display:flex;flex-direction:column;gap:8px}
+.hs-title{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--mu);padding-bottom:4px;border-bottom:1px solid var(--bd)}
+.hrows{display:flex;flex-direction:column;gap:6px}
+.hrow{display:flex;align-items:flex-start;gap:14px}
+.hrow-key{display:flex;gap:4px;flex-shrink:0;width:190px;flex-wrap:wrap}
+.hk2{font-size:9px;font-weight:500;color:var(--tx);border:1px solid var(--bd);padding:2px 7px;border-radius:3px;white-space:nowrap;background:white}
+.hrow-desc{font-size:11px;color:var(--tx);line-height:1.5;padding-top:1px}
+.hrow-desc b{font-weight:500}
+.htip{font-size:10px;color:var(--mu);font-style:italic;font-family:"EB Garamond",serif;line-height:1.5;background:rgba(0,212,255,.05);border-left:2px solid var(--n);padding:8px 12px;border-radius:0 3px 3px 0}
 </style>
 </head>
 <body class="bg-camera">
@@ -141,6 +161,7 @@ body.bg-camera #wf{opacity:1}
   <div id="tr">
     <div id="fps">-- fps</div>
     <div id="sysi"><div class="dot" id="dot"></div><span id="stx">Standby</span></div>
+    <button class="btn rs" onclick="toggleHelp()" style="width:26px;padding:0;font-size:14px;font-family:serif;font-weight:500" title="Instructions">?</button>
   </div>
 </div>
 
@@ -896,5 +917,116 @@ cvs.height = innerHeight;
 updDepth();
 initThree();
 </script>
+
+<!-- INSTRUCTIONS OVERLAY -->
+<div id="help-overlay" onclick="closeHelpOut(event)">
+  <div id="help-box">
+    <div id="help-head">
+      <div>
+        <h2>Instructions</h2>
+        <p>L — Holographic Object Builder</p>
+      </div>
+      <button id="help-close" onclick="toggleHelp()">✕</button>
+    </div>
+    <div id="help-body">
+
+      <div class="hs">
+        <div class="hs-title">Getting Started</div>
+        <div class="hrows">
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">Begin</span></div>
+            <div class="hrow-desc">Click <b>Begin</b> on the splash screen and allow camera access. Stand 60–100 cm from your camera in good lighting. The neon skeleton overlays your hands in real time.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hs">
+        <div class="hs-title">Left Hand — Place &amp; Move</div>
+        <div class="hrows">
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">Quick fist</span></div>
+            <div class="hrow-desc">Close your hand so your <b>thumb tip meets your pinky base</b> — this places a new object at your hand position in 3D space.</div>
+          </div>
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">Fist near object</span></div>
+            <div class="hrow-desc">If your hand is close to an existing object, closing your fist <b>grabs and drags</b> it. Open your hand to release.</div>
+          </div>
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">Hold fist + move</span> <span style="font-size:9px;color:var(--mu);align-self:center">Paint mode</span></div>
+            <div class="hrow-desc">In <b>Paint</b> mode, holding your fist and moving draws a <b>straight line of connected objects</b>. The axis locks automatically from your first movement direction — horizontal or vertical.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hs">
+        <div class="hs-title">Right Hand — Rotate &amp; Connect</div>
+        <div class="hrows">
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">Pinch + move</span></div>
+            <div class="hrow-desc">Touch your <b>thumb tip to index finger tip</b>. Pinching selects the nearest object (or the last placed one) and lets you <b>rotate it</b> by moving your hand.</div>
+          </div>
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">Pinch</span> <span style="font-size:9px;color:var(--mu);align-self:center">Connect mode</span></div>
+            <div class="hrow-desc">In <b>Connect</b> mode, pinch near two objects in sequence to draw a <b>neon connection line</b> between them. Use left fist for the first, right pinch for the second (or either order).</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hs">
+        <div class="hs-title">Modes</div>
+        <div class="hrows">
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">Place</span></div>
+            <div class="hrow-desc">Default mode. Left fist places or drags objects. Right pinch rotates.</div>
+          </div>
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">Paint</span></div>
+            <div class="hrow-desc">Hold left fist and sweep your hand to paint a <b>straight connected chain</b> of the selected shape. The axis (horizontal / vertical) locks after your first movement. Release fist to end stroke.</div>
+          </div>
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">Connect</span></div>
+            <div class="hrow-desc">Draw neon lines between any two objects. Fist near object 1, then pinch near object 2. Lines update live as you move objects.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hs">
+        <div class="hs-title">Toolbar &amp; Controls</div>
+        <div class="hrows">
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">Scroll wheel</span></div>
+            <div class="hrow-desc">Move the <b>Z depth plane</b> — objects are placed closer or further away. If an object is selected, scroll also pushes/pulls it along the Z axis.</div>
+          </div>
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">Bg: Camera / Black</span></div>
+            <div class="hrow-desc">Toggle between your live camera feed as background or a clean black background showing only the neon skeleton and objects.</div>
+          </div>
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">Fill: Hollow / Solid</span></div>
+            <div class="hrow-desc">Hollow renders objects as glowing wireframes. Solid uses a lit neon mesh. Switching updates all existing objects instantly.</div>
+          </div>
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">Shape buttons</span></div>
+            <div class="hrow-desc">Choose from Cube, Sphere, Pyramid, Torus, Octahedron, or Cylinder. The selected shape is used for all new placements and paint strokes.</div>
+          </div>
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">✕ Clear</span></div>
+            <div class="hrow-desc">Remove all objects and connections from the scene.</div>
+          </div>
+          <div class="hrow">
+            <div class="hrow-key"><span class="hk2">✦ AI Build</span></div>
+            <div class="hrow-desc">Describe a structure in plain English and the AI generates it. Requires an <b>Anthropic API key</b> (sk-ant-…) from console.anthropic.com.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="htip">
+        💡 <b>Tips:</b> Good lighting on your hands makes tracking much more reliable. Keep your hands clearly visible to the camera — avoid having them go off-screen mid-gesture. The neon dots on your thumb tip and pinky base light up white when a fist is detected.
+      </div>
+
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
